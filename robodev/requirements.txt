@@ -1,0 +1,4 @@
+# RoboDev dependencies
+requests>=2.31,<3
+PyYAML>=6.0,<7
+openai>=1.0,<2       # Optional — only needed if ai_review.enabled = true

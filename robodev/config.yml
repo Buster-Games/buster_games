@@ -1,0 +1,99 @@
+# ──────────────────────────────────────────────────────────────
+# RoboDev Configuration — Buster Games
+# ──────────────────────────────────────────────────────────────
+# Customise thresholds, Jira settings, and review rules here.
+# This file is read at runtime by every robodev module.
+
+# ── Jira integration ─────────────────────────────────────────
+jira:
+  # Jira project key prefixes used in this repo (e.g. BG-4)
+  project_keys:
+    - BG
+
+  # Require every PR to reference a Jira ticket?
+  require_ticket: true
+
+  # Allowed Jira statuses for a ticket linked to an open PR
+  allowed_pr_statuses:
+    - In Progress
+    - In Review
+    - Code Review
+
+  # Statuses that BLOCK a PR from being merged
+  blocked_statuses:
+    - Done
+    - Closed
+    - Cancelled
+
+  # Automatic status transitions when PR state changes
+  sync:
+    on_open: "In Review"
+    on_merge: "Done"
+    on_close: ""            # empty = no transition on close without merge
+
+# ── PR hygiene ────────────────────────────────────────────────
+hygiene:
+  # Require Jira key in the PR title itself (not just the body)
+  require_jira_in_title: true
+
+  # Minimum PR description length (characters)
+  min_body_length: 30
+
+  # Optional: enforce conventional-commit prefixes in titles
+  # Leave empty to disable
+  conventional_commit_prefixes:
+    - feat
+    - fix
+    - docs
+    - style
+    - refactor
+    - perf
+    - test
+    - build
+    - ci
+    - chore
+    - revert
+
+# ── Code review rules ────────────────────────────────────────
+code_review:
+  # Max changed lines per file before a warning is raised
+  max_changed_lines_per_file: 500
+
+  # Max files touched in a single PR before a warning is raised
+  max_files_per_pr: 20
+
+  # Require at least one test file to be modified when source changes
+  require_tests: true
+
+  # Banned patterns scanned in the diff (regex)
+  banned_patterns:
+    - label: "Possible secret / API key"
+      regex: '(?i)(api[_-]?key|secret|password|token)\s*[:=]\s*["\u0027][A-Za-z0-9+/=]{16,}'
+      severity: error
+
+    - label: "console.log left in code"
+      regex: 'console\.\s*log\s*\('
+      severity: warning
+
+    - label: "Debugger statement"
+      regex: '\bdebugger\b'
+      severity: warning
+
+    - label: "TODO/FIXME/HACK"
+      regex: '(?i)\b(TODO|FIXME|HACK|XXX)\b'
+      severity: warning
+
+# ── AI-powered review (optional) ─────────────────────────────
+ai_review:
+  # Set to true AND provide OPENAI_API_KEY secret to enable
+  enabled: false
+  model: "gpt-4o"
+  max_diff_chars: 60000
+  system_prompt: >
+    You are RoboDev, a senior software engineer reviewing a pull request
+    for the Buster Games project (a retro 8-bit mobile web-app).
+    Be concise and constructive. Focus on bugs, security, performance,
+    readability, and best practices.
+    Format your response as Markdown with sections:
+    ## Summary, ## Issues Found, ## Suggestions, ## Verdict
+    (APPROVE / REQUEST_CHANGES / COMMENT).
