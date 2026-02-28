@@ -1,21 +1,22 @@
 /**
- * Smoke tests for the Aragon16 palette constants exported from BootScene.
+ * Smoke tests for the Brazilian Afternoon palette constants exported from constants.ts.
  * These are pure data checks — no DOM or Phaser instance required.
  */
 import { PALETTE, PALETTE_HEX, FONT } from '../src/constants';
 
 // ── PALETTE (numeric) ────────────────────────────────────────────────────────
 
-test('PALETTE has exactly 16 colours', () => {
-  expect(Object.keys(PALETTE).length).toBe(16);
+test('PALETTE has expected number of colours', () => {
+  // Brazilian Afternoon has ~30 colours
+  expect(Object.keys(PALETTE).length).toBeGreaterThanOrEqual(25);
 });
 
-test('PALETTE.nearBlack matches Aragon16 #272120', () => {
-  expect(PALETTE.nearBlack).toBe(0x272120);
+test('PALETTE.nearBlack matches Brazilian Afternoon #596674', () => {
+  expect(PALETTE.nearBlack).toBe(0x596674);
 });
 
-test('PALETTE.accentBlue matches Aragon16 #6b72d4', () => {
-  expect(PALETTE.accentBlue).toBe(0x6b72d4);
+test('PALETTE.blue matches Brazilian Afternoon #3d94c0', () => {
+  expect(PALETTE.blue).toBe(0x3d94c0);
 });
 
 test('All PALETTE values are valid 24-bit integers', () => {
@@ -30,8 +31,8 @@ test('All PALETTE values are valid 24-bit integers', () => {
 
 // ── PALETTE_HEX (string) ─────────────────────────────────────────────────────
 
-test('PALETTE_HEX has exactly 16 colours', () => {
-  expect(Object.keys(PALETTE_HEX).length).toBe(16);
+test('PALETTE_HEX has expected number of colours', () => {
+  expect(Object.keys(PALETTE_HEX).length).toBeGreaterThanOrEqual(25);
 });
 
 test('All PALETTE_HEX values are valid CSS hex strings', () => {

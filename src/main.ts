@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BootScene } from './scenes/BootScene';
+import { HomeScene } from './scenes/HomeScene';
 
 /**
  * Phaser game configuration.
@@ -10,18 +10,18 @@ import { BootScene } from './scenes/BootScene';
  */
 const config: Phaser.Types.Core.GameConfig = {
   type: Phaser.AUTO,          // WebGL with Canvas fallback
-  backgroundColor: '#272120', // Aragon16 near-black — no flash on load
+  backgroundColor: '#596674', // Brazilian Afternoon near-black — no flash on load
   pixelArt: true,             // disables texture anti-aliasing for crisp pixels
 
   scale: {
-    mode: Phaser.Scale.FIT,
+    mode: Phaser.Scale.EXPAND,
     autoCenter: Phaser.Scale.CENTER_BOTH,
     width: 390,
     height: 844,
   },
 
   // Scenes are started in order; only the first is launched automatically
-  scene: [BootScene],
+  scene: [HomeScene],
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
