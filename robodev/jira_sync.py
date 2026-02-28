@@ -31,6 +31,7 @@ def _add_remote_link(key: str, pr_url: str, pr_title: str) -> None:
     """Add a remote link on the Jira issue pointing to the GitHub PR."""
     base = jira_base_url()
     if not base:
+        print(f"  Remote link skipped for {key} — JIRA_BASE_URL not set")
         return
     url = f"{base}/rest/api/3/issue/{key}/remotelink"
     payload = {
@@ -44,15 +45,28 @@ def _add_remote_link(key: str, pr_url: str, pr_title: str) -> None:
         }
     }
     try:
-        requests.post(url, json=payload, auth=jira_auth(), timeout=15)
+        resp = requests.post(url, json=payload, auth=jira_auth(), timeout=15)
+        if resp.status_code in (200, 201):
+            print(f"  Remote link added to {key} ✅")
+        else:
+            print(
+                f"  Warning: remote link POST to {key} returned HTTP {resp.status_code}. "
+                f"Response: {resp.text[:200]}"
+            )
     except requests.RequestException as exc:
-        print(f"Warning: could not add remote link to {key}: {exc}")
+        print(f"  Warning: could not add remote link to {key}: {exc}")
 
 
 def _transition_issue(key: str, target_status: str) -> None:
-    """Attempt to transition a Jira issue to the given status name."""
+    """Attempt to transition a Jira issue to the given status name.
+
+    Matches against both the transition name and the destination status name,
+    so config values like 'In Review' work regardless of what Jira calls
+    the transition itself (e.g. 'Start Review', 'Move to Review', etc.).
+    """
     base = jira_base_url()
     if not base:
+        print(f"  Transition skipped for {key} — JIRA_BASE_URL not set")
         return
 
     # Get available transitions
@@ -60,22 +74,52 @@ def _transition_issue(key: str, target_status: str) -> None:
     try:
         resp = requests.get(url, auth=jira_auth(), timeout=15)
         resp.raise_for_status()
-    except requests.RequestException:
+    except requests.RequestException as exc:
+        print(f"  Could not fetch transitions for {key}: {exc}")
         return
 
     transitions = resp.json().get("transitions", [])
-    for t in transitions:
-        if t["name"].lower() == target_status.lower():
-            requests.post(
-                url,
-                json={"transition": {"id": t["id"]}},
-                auth=jira_auth(),
-                timeout=15,
-            )
-            print(f"Transitioned {key} → {target_status}")
-            return
+    available = [
+        f"'{t['name']}' → '{t.get('to', {}).get('name', '?')}'"
+        for t in transitions
+    ]
+    print(f"  Available transitions for {key}: {', '.join(available) or 'none'}")
 
-    print(f"No matching transition '{target_status}' for {key}")
+    # Match on transition name OR destination status name (case-insensitive)
+    matched = None
+    for t in transitions:
+        transition_name = t.get("name", "")
+        destination_status = t.get("to", {}).get("name", "")
+        if (
+            transition_name.lower() == target_status.lower()
+            or destination_status.lower() == target_status.lower()
+        ):
+            matched = t
+            break
+
+    if not matched:
+        print(
+            f"  No transition to '{target_status}' found for {key}. "
+            f"Update config.yml sync values to match one of the available transition/status names above."
+        )
+        return
+
+    try:
+        post_resp = requests.post(
+            url,
+            json={"transition": {"id": matched["id"]}},
+            auth=jira_auth(),
+            timeout=15,
+        )
+        if post_resp.status_code in (200, 204):
+            print(f"  Transitioned {key} → '{matched.get('to', {}).get('name', target_status)}' ✅")
+        else:
+            print(
+                f"  Transition POST for {key} returned HTTP {post_resp.status_code}. "
+                f"Response: {post_resp.text[:200]}"
+            )
+    except requests.RequestException as exc:
+        print(f"  Could not post transition for {key}: {exc}")
 
 
 def run() -> int:
