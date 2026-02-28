@@ -217,12 +217,12 @@ See the Jira board (BG project) for the full ticket breakdown. Epics:
 
 | Epic | Title |
 |------|-------|
-| BG-1 | Project Foundation & Infrastructure |
-| BG-2 | Home Screen |
-| BG-3 | Tennis Core Engine |
-| BG-4 | Cutscene & Dialogue System |
-| BG-5 | Buster Drive Transition |
-| BG-6 | Campaign Mode |
-| BG-7 | Quick Match Mode |
-| BG-8 | Game Assets |
-| BG-9 | Coming Soon Screen |
+| BG-6 | Project Foundation & Infrastructure |
+| BG-11 | Home Screen |
+| BG-12 | Tennis Core Engine |
+| BG-13 | Cutscene & Dialogue System |
+| BG-14 | Buster Drive Transition |
+| BG-15 | Campaign Mode |
+| BG-16 | Quick Match Mode |
+| BG-17 | Game Assets |
+| BG-18 | Coming Soon Screen |
