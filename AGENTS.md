@@ -131,6 +131,8 @@ These are enforced automatically by RoboDev. Do not violate them:
 - **`debugger`** statements
 - **`TODO` / `FIXME` / `HACK` / `XXX`** comments
 
+> **Note:** Files under `robodev/`, `.github/`, and `AGENTS.md` are excluded from banned-pattern scanning and test-coverage checks to avoid false positives from the review infrastructure itself.
+
 ### Test Expectations
 
 If you modify or add source files, you **must** include corresponding test files. The bot looks for filenames containing `test` or `spec`.

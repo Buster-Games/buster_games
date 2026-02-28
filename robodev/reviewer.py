@@ -38,16 +38,54 @@ def _check_file_size(files: list[dict], max_changed: int) -> list[str]:
     return issues
 
 
+# Paths excluded from banned-pattern scanning and test-coverage checks.
+# These are review infrastructure, not application source code.
+_EXCLUDED_PATHS = ("robodev/", ".github/", "AGENTS.md")
+
+
+def _parse_added_lines(diff: str) -> list[tuple[str, str]]:
+    """Extract (filename, line_text) for every added line in a unified diff.
+
+    Only lines starting with '+' (but not '+++') are returned, and files
+    whose path starts with an excluded prefix are skipped entirely.
+    """
+    current_file: str | None = None
+    results: list[tuple[str, str]] = []
+    for raw_line in diff.splitlines():
+        # Detect file header: +++ b/path/to/file
+        if raw_line.startswith("+++ b/"):
+            path = raw_line[6:]
+            if any(path.startswith(ex) for ex in _EXCLUDED_PATHS):
+                current_file = None          # skip this file
+            else:
+                current_file = path
+            continue
+        # Only look at added lines inside a non-excluded file
+        if current_file and raw_line.startswith("+") and not raw_line.startswith("+++"):
+            results.append((current_file, raw_line[1:]))   # strip leading '+'
+    return results
+
+
 def _check_banned_patterns(diff: str, patterns: list[dict]) -> list[str]:
-    """Scan the diff for banned patterns (secrets, debug code, etc.)."""
+    """Scan *added* lines in the diff for banned patterns.
+
+    Skips robodev/ infrastructure so that config definitions of the
+    patterns themselves don't trigger false positives.
+    """
+    added_lines = _parse_added_lines(diff)
+    if not added_lines:
+        return []
+
+    # Build one big string of added content for regex scanning
+    added_text = "\n".join(line for _, line in added_lines)
+
     issues = []
     for entry in patterns:
         regex = entry.get("regex", "")
         label = entry.get("label", regex)
         severity = entry.get("severity", "warning")
         icon = "❌" if severity == "error" else "⚠️"
-        for match in re.finditer(regex, diff):
-            # Try to locate the filename from diff header context
+        for match in re.finditer(regex, added_text):
             issues.append(f"- {icon} **{label}** detected in diff near: `{match.group()[:80]}`")
     return issues
 
@@ -71,6 +109,9 @@ def _check_test_coverage(files: list[dict], require_tests: bool) -> list[str]:
     test_found = False
     for f in files:
         name = f["filename"]
+        # Skip infrastructure files — they don't need app-level tests
+        if any(name.startswith(ex) for ex in _EXCLUDED_PATHS):
+            continue
         if f["status"] in ("added", "modified"):
             if "test" in name.lower() or "spec" in name.lower():
                 test_found = True
