@@ -15,15 +15,13 @@ jira:
 
   # Allowed Jira statuses for a ticket linked to an open PR
   allowed_pr_statuses:
+    - To Do
     - In Progress
     - In Review
-    - Code Review
+    - Done
 
   # Statuses that BLOCK a PR from being merged
-  blocked_statuses:
-    - Done
-    - Closed
-    - Cancelled
+  blocked_statuses: []
 
   # Automatic status transitions when PR state changes
   sync:
