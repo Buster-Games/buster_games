@@ -241,10 +241,26 @@ def run() -> int:
     create_review(event=event, body=review_body)
 
     if has_errors:
-        print("Code review FAILED — errors found")
+        print("Code review FAILED — errors found:")
+        for issue in issues:
+            if "❌" in issue:
+                plain = issue.replace("- ❌ ", "").replace("**", "")
+                print(f"  • {plain}")
+        if any("⚠️" in i for i in issues):
+            print("  Warnings also raised:")
+            for issue in issues:
+                if "⚠️" in issue:
+                    plain = issue.replace("- ⚠️ ", "")
+                    print(f"  ⚠ {plain}")
         return 1
 
-    print("Code review passed ✅")
+    if issues:  # warnings only
+        print("Code review passed ✅ (with warnings):")
+        for issue in issues:
+            plain = issue.replace("- ⚠️ ", "")
+            print(f"  ⚠ {plain}")
+    else:
+        print("Code review passed ✅ — no issues detected")
     return 0
 
 

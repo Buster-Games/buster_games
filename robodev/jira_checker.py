@@ -66,10 +66,13 @@ def run() -> int:
             f"Expected format: `{'|'.join(project_keys)}-<number>`"
         )
         post_pr_comment(msg)
-        # Depending on strictness, fail or warn
         if jira_cfg.get("require_ticket", True):
-            print("Jira check FAILED — no ticket found")
+            print(
+                f"Jira check FAILED — no {'/'.join(project_keys)}-<number> key found "
+                "in the PR title or description."
+            )
             return 1
+        print("Jira check: no ticket found (require_ticket=false — continuing)")
         return 0
 
     # ── Validate each referenced ticket ───────────────────────
@@ -82,9 +85,15 @@ def run() -> int:
         if issue is None:
             if base:
                 lines.append(f"- ❌ **{key}** — could not fetch from Jira (does it exist?)")
+                print(
+                    f"Jira check FAILED — could not fetch ticket {key} from Jira. "
+                    "Check that the ticket exists and that JIRA_BASE_URL, "
+                    "JIRA_USER_EMAIL, and JIRA_API_TOKEN secrets are correctly configured."
+                )
                 has_error = True
             else:
                 lines.append(f"- ℹ️ **{key}** — Jira integration not configured; skipping validation")
+                print(f"Jira check: skipping {key} — JIRA_BASE_URL secret not set")
             continue
 
         fields = issue.get("fields", {})
@@ -99,13 +108,22 @@ def run() -> int:
                 f"- ❌ **[{key}]({base}/browse/{key})** — "
                 f"status `{status}` is not allowed for open PRs"
             )
+            print(
+                f"Jira check FAILED — {key} has blocked status '{status}'. "
+                f"Blocked statuses: {', '.join(blocked_statuses)}"
+            )
             has_error = True
         elif allowed_statuses and status.lower() not in allowed_statuses:
             lines.append(
                 f"- ⚠️ **[{key}]({base}/browse/{key})** — "
                 f"status `{status}` (expected: {', '.join(allowed_statuses)})"
             )
+            print(
+                f"Jira check WARNING — {key} has unexpected status '{status}'. "
+                f"Allowed statuses: {', '.join(allowed_statuses)}"
+            )
         else:
+            print(f"Jira check: {key} OK — {issue_type} '{summary}' | Status: {status} | Assignee: {assignee}")
             lines.append(
                 f"- ✅ **[{key}]({base}/browse/{key})** — "
                 f"{issue_type}: _{summary}_ | Status: `{status}` | Assignee: {assignee}"
@@ -114,7 +132,7 @@ def run() -> int:
     post_pr_comment("\n".join(lines))
 
     if has_error:
-        print("Jira check FAILED")
+        print("Jira check FAILED — see reasons above")
         return 1
 
     print("Jira check passed ✅")
