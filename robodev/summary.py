@@ -53,7 +53,15 @@ def run() -> int:
     post_pr_comment("\n".join(lines))
 
     if not all_passed:
-        print("Summary: some gates failed")
+        failed = [name for name, result in [
+            ("PR Hygiene", hygiene),
+            ("Jira Validation", jira),
+            ("Code Review", review),
+        ] if result != "success"]
+        print(f"Summary: {len(failed)} gate(s) failed — {', '.join(failed)}")
+        for name, result in [("PR Hygiene", hygiene), ("Jira Validation", jira), ("Code Review", review)]:
+            icon = "✅" if result == "success" else "❌"
+            print(f"  {icon} {name}: {result}")
         return 1
 
     print("Summary: all gates passed ✅")

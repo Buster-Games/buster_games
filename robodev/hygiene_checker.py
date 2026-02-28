@@ -75,10 +75,25 @@ def run() -> int:
         post_pr_comment("\n".join(lines))
 
     if errors:
-        print("PR hygiene check FAILED")
+        print("PR hygiene check FAILED — issues found:")
+        for e in errors:
+            # Strip markdown formatting for plain log output
+            plain = e.replace("❌ ", "").replace("**", "")
+            print(f"  • {plain}")
+        if warnings:
+            print("  Warnings also raised:")
+            for w in warnings:
+                plain = w.replace("⚠️ ", "")
+                print(f"  ⚠ {plain}")
         return 1
 
-    print("PR hygiene check passed ✅")
+    if warnings:
+        print("PR hygiene check passed ✅ (with warnings):")
+        for w in warnings:
+            plain = w.replace("⚠️ ", "")
+            print(f"  ⚠ {plain}")
+    else:
+        print("PR hygiene check passed ✅")
     return 0
 
 
