@@ -6,6 +6,11 @@ export default defineConfig({
   // https://<org>.github.io/buster_games/
   base: '/buster_games/',
 
+  // Serve the root assets/ folder as static files.
+  // Vite copies its contents to dist/ root, so Phaser load paths
+  // must omit the 'assets/' prefix (e.g. 'backgrounds/foo.png').
+  publicDir: 'assets',
+
   server: {
     host: true,  // exposes to local network so you can test on a real phone
     port: 3000,

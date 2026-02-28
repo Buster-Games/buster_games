@@ -16,9 +16,9 @@ export class HomeScene extends Phaser.Scene {
   }
 
   preload(): void {
-    this.load.image('home-beach', 'assets/backgrounds/home-beach.png');
-    this.load.image('icon-racquet', 'assets/items/pink-tennis-racquet.png');
-    this.load.image('icon-van', 'assets/items/retro-van-transparrent.png');
+    this.load.image('home-beach', 'backgrounds/home-beach.png');
+    this.load.image('icon-racquet', 'items/pink-tennis-racquet.png');
+    this.load.image('icon-van', 'items/retro-van-transparrent.png');
   }
 
   create(): void {
