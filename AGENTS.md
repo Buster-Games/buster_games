@@ -2,220 +2,223 @@
 
 > This file is for AI agents (Copilot, Cursor, Codex, ChatGPT, etc.) working in this repository.
 > Humans: you don't need to read this — see README.md instead.
+>
+> Full project plan and design decisions: **`docs/PLAN.md`**
 
 ---
 
 ## Project Overview
 
-**Buster Games** is a mobile web app containing a suite of retro 8-bit mini-games. The visual style is 8-bit retro with a modern feel. The app is built for a user named Lara.
+**Buster Games** is a mobile-first web app housing retro 8-bit mini-games, built as a birthday gift for Lara. The visual style is 8-bit pixel art with smooth modern animations. Buster is the name of the van Lara and Asier built together.
 
-### Games
-
-| Game | Description |
-|------|-------------|
-| **Love at First Serve** | A tennis game where Lara battles opponents to rescue Asier from a 500lb gorilla named Nic |
-| **Buster Drives** | TBD |
+| Game | Status | Description |
+|------|--------|-------------|
+| **Love at First Serve** | In development | Tennis game — Lara battles opponents to rescue Asier from Nic the gorilla |
+| **Buster Drives** | Coming soon | TBD |
 
 ---
 
-## RoboDev — Automated PR Review System
+## Tech Stack
 
-This repo has an automated review bot called **RoboDev** that runs on every pull request via GitHub Actions. You must understand this system before making changes, opening PRs, or modifying CI.
-
-### Architecture
-
-```
-PR opened / updated / reopened / edited
-        │
-        ├─► Gate 1: PR Hygiene      (robodev/hygiene_checker.py)
-        │     Validates title format, Jira key, description length,
-        │     conventional-commit prefix
-        │
-        ├─► Gate 2: Jira Validation  (robodev/jira_checker.py)
-        │     Checks ticket exists, is in an allowed status,
-        │     not Done/Closed/Cancelled
-        │
-        ├─► Gate 3: Code Review      (robodev/reviewer.py)
-        │     Rule-based: file size, banned patterns, test coverage
-        │     AI-powered: optional OpenAI review of the diff
-        │
-        └─► Gate 4: Summary          (robodev/summary.py)
-              Posts consolidated pass/fail table as a PR comment
-```
-
-A separate workflow (`jira-sync.yml`) auto-transitions Jira tickets when PRs are opened, merged, or closed.
-
-### Pipeline Files
-
-| File | Purpose |
-|------|---------|
-| `.github/workflows/pr-review.yml` | Main 4-gate review pipeline, runs on `pull_request` events |
-| `.github/workflows/jira-sync.yml` | PR state → Jira ticket status transitions |
-| `.github/PULL_REQUEST_TEMPLATE.md` | Enforces Jira ticket, description, checklist on every PR |
-
-### Python Modules
-
-All review logic lives in the `robodev/` package:
-
-| Module | Role |
-|--------|------|
-| `config.py` | Loads `config.yml`, provides GitHub/Jira auth helpers |
-| `config.yml` | **All tuneable rules, thresholds, and settings** |
-| `github_client.py` | Thin wrapper for GitHub REST API (comments, reviews, diffs) |
-| `hygiene_checker.py` | Gate 1 — PR title/body validation |
-| `jira_checker.py` | Gate 2 — Jira ticket existence & status checks |
-| `jira_sync.py` | Jira status transitions + remote link creation |
-| `reviewer.py` | Gate 3 — Rule-based checks + optional AI review |
-| `summary.py` | Gate 4 — Consolidated summary comment |
-| `requirements.txt` | Python dependencies: `requests`, `PyYAML`, `openai` |
-
-### Dependencies
-
-- **Runtime:** Python 3.11, `requests`, `PyYAML`
-- **Optional:** `openai` (only if AI review is enabled)
-- **CI:** GitHub Actions (ubuntu-latest runners)
+| Layer | Tool | Notes |
+|-------|------|-------|
+| Game engine | [Phaser 3](https://phaser.io) (MIT) | Scenes, physics, tweens, sprite animation, touch input |
+| Bundler | [Vite](https://vitejs.dev) | Dev server + static `dist/` build for GitHub Pages |
+| Language | TypeScript (strict) | All game source lives in `src/` |
+| Testing | [Vitest](https://vitest.dev) | Co-located config in `vite.config.ts` |
+| Hosting | GitHub Pages | Deployed from `dist/` via `.github/workflows/deploy.yml` (BG-8) |
+| CI/Review | RoboDev (Python 3.11) | Automated PR gates — see section below |
+| Pixel art | Pixel Lab Tier 1 | AI sprite/animation generation |
+| Sprite assembly | LibreSprite | Frame assembly, palette lock, PNG + Aseprite JSON export |
+| Font | Press Start 2P (Google Fonts) | Loaded in `index.html` before game starts |
+| Audio | BeepBox | Chiptune music and SFX |
+| Palette | Aragon16 | 16-colour palette — `assets/palettes/aragon16.hex` |
 
 ---
 
-## PR Requirements
+## Repository Structure
 
-When creating or suggesting PRs for this repo, follow these rules strictly:
+```
+buster_games/
+├── src/
+│   ├── main.ts                      # Phaser game config + scene registry
+│   ├── constants.ts                 # PALETTE, PALETTE_HEX, FONT — import from here
+│   ├── scenes/
+│   │   ├── BootScene.ts             # First scene — splash screen, currently active
+│   │   ├── HomeScene.ts             # Van + beach hero, game select (BG-9)
+│   │   ├── CutsceneScene.ts         # Reusable dialogue + animation player (BG-12)
+│   │   ├── DriveScene.ts            # Buster parallax drive transition (BG-15)
+│   │   ├── TennisScene.ts           # Core tennis gameplay (BG-8 to BG-11)
+│   │   ├── QuickMatchScene.ts       # Opponent + set length selector (BG-19)
+│   │   └── ComingSoonScene.ts       # Buster Drives placeholder (BG-21)
+│   ├── game/
+│   │   ├── tennis/                  # Player.ts, Ball.ts, Opponent.ts, Scoreboard.ts
+│   │   └── campaign/               # CampaignManager.ts, opponents.ts
+│   └── ui/                         # Button.ts, DialogueBox.ts
+├── assets/
+│   ├── palettes/aragon16.hex        # Aragon16 — all art must use only these 16 colours
+│   ├── sprites/                     # PNG + Aseprite JSON spritesheets per character
+│   ├── backgrounds/                 # Court and scene backgrounds
+│   └── audio/                      # music/ and sfx/
+├── tests/                           # Vitest test files — mirror src/ structure
+├── docs/PLAN.md                     # Full project plan, opponent roster, mechanic specs
+├── index.html                       # Entry point — mobile viewport, font preload
+├── vite.config.ts                   # Vite + Vitest config
+├── tsconfig.json                    # TypeScript config
+├── package.json                     # npm scripts and dependencies
+└── robodev/                         # CI review infrastructure — do not modify
+```
 
-### Title Format
+---
 
-Titles **must** include a Jira ticket key and follow conventional-commit format:
+## Development
+
+### Prerequisites
+- Node.js 20+
+- npm
+
+### Commands
+
+```bash
+npm install          # Install dependencies (first time)
+npm run dev          # Start dev server at http://localhost:3000/buster_games/
+                     # Also exposed on LAN at http://<your-ip>:3000/buster_games/
+                     # for testing on a real phone (same Wi-Fi required)
+npm test             # Run all Vitest tests once
+npm run test:watch   # Run tests in watch mode
+npm run typecheck    # TypeScript type check (no emit)
+npm run build        # Production build → dist/
+npm run preview      # Preview the production build locally
+```
+
+### Key Config Facts
+
+- **Design resolution:** 390 × 844px (iPhone 14 portrait baseline)
+- **Scaling:** `Phaser.Scale.FIT` + `autoCenter: CENTER_BOTH` — the canvas auto-fits any screen, no manual scaling needed
+- **Pixel art mode:** `pixelArt: true` in `main.ts` — never disable this
+- **Base path:** `/buster_games/` in `vite.config.ts` — required for GitHub Pages subdirectory hosting
+
+---
+
+## Coding Conventions
+
+### Colours and Fonts
+- **Always** import `PALETTE`, `PALETTE_HEX`, and `FONT` from `src/constants.ts`
+- **Never** hard-code colour hex strings or font names anywhere else
+- `PALETTE` (numeric) → Phaser graphics, rectangles, geometry
+- `PALETTE_HEX` (CSS strings) → Phaser text `color` and `stroke` style properties
+- All 16 colours are in `assets/palettes/aragon16.hex` — do not introduce colours outside this palette
+
+### Scenes
+- Every scene class goes in `src/scenes/`
+- Register new scenes in the `scene` array in `src/main.ts`
+- Use `this.scene.start('SceneKey')` to transition between scenes
+
+### Assets
+- Spritesheets: `assets/sprites/<character>/sheet.png` + `sheet.json` (Aseprite format)
+- Load via `this.load.atlas('key', 'sheet.png', 'sheet.json')` in `BootScene` preload (once preloading is built out)
+- All asset paths are relative to the `public/` directory or `assets/` as configured in Vite
+
+### TypeScript
+- Strict mode is on — no `any`, no implicit returns, no unused variables
+- Use `as const` on all constant objects (already done in `constants.ts`)
+
+---
+
+## Testing
+
+Tests live in `tests/` and use **Vitest** with `globals: true` (no import needed for `test`, `expect`, `describe`).
+
+```bash
+npm test             # Run all tests once — use before committing
+npm run test:watch   # Watch mode during development
+```
+
+### Rules
+- Every new `src/` file that contains logic **must** have a corresponding test file in `tests/`
+- Test files must be named `*.test.ts`
+- Tests run in `environment: 'node'` — do **not** import Phaser in test files (it requires a browser/WebGL context and will crash the runner). Test pure logic and data only; mock or isolate any Phaser dependencies
+- RoboDev will **warn** on PRs where source files change but no test files change
+
+---
+
+## RoboDev — Automated PR Review
+
+Every PR runs a 4-gate pipeline via GitHub Actions. All gates must pass.
+
+### Gates
+
+```
+PR opened / updated
+    ├─► Gate 1: PR Hygiene       robodev/hygiene_checker.py
+    │     Title format, Jira key, description length, conventional-commit prefix
+    ├─► Gate 2: Jira Validation  robodev/jira_checker.py
+    │     Ticket exists, status is To Do / In Progress / In Review / Done
+    ├─► Gate 3: Code Review      robodev/reviewer.py
+    │     File size, banned patterns, secrets, test coverage
+    └─► Gate 4: Summary          robodev/summary.py
+          Posts consolidated pass/fail table as a PR comment
+```
+
+`jira-sync.yml` auto-transitions the linked ticket when the PR opens (`→ In Review`) or merges (`→ Done`).
+
+### PR Title Format
 
 ```
 <type>(BG-<number>): <short description>
 ```
 
-Examples:
-```
-feat(BG-42): add tennis scoring system
-fix(BG-99): prevent gorilla from escaping bounds
-refactor(BG-15): extract sprite animation into shared module
-```
-
-Valid type prefixes: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
-
-### Description Requirements
-
-- Minimum **30 characters**
-- Must explain **what** changed and **why**
-- Should reference the Jira ticket key (e.g. `BG-4`) in the body as well
+Valid prefixes: `feat` `fix` `docs` `style` `refactor` `perf` `test` `build` `ci` `chore` `revert`
 
 ### Branch Naming
 
-Follow the pattern: `<type>/BG-<number>-<short-slug>`
-
-Examples: `feat/BG-42-tennis-scoring`, `fix/BG-99-gorilla-bounds`
-
----
-
-## Code Review Rules
-
-These are enforced automatically by RoboDev. Do not violate them:
-
-### Hard Blocks (will fail the PR)
-
-- **Secrets in diffs** — any pattern matching `(api_key|secret|password|token) := "..."` with 16+ chars
-- **Missing Jira ticket** — title must contain `BG-<number>`
-- **Description too short** — under 30 characters
-
-### Warnings (won't block, but flagged)
-
-- **Large files** — more than 500 changed lines per file
-- **Large PRs** — more than 20 files modified
-- **Missing tests** — source files changed (`.py`, `.js`, `.ts`, `.jsx`, `.tsx`) with no test file changes
-- **`console.log`** left in code
-- **`debugger`** statements
-- **`TODO` / `FIXME` / `HACK` / `XXX`** comments
-
-> **Note:** Files under `robodev/`, `.github/`, and `AGENTS.md` are excluded from banned-pattern scanning and test-coverage checks to avoid false positives from the review infrastructure itself.
-
-### Test Expectations
-
-If you modify or add source files, you **must** include corresponding test files. The bot looks for filenames containing `test` or `spec`.
-
----
-
-## Configuration Reference
-
-All review behaviour is controlled by `robodev/config.yml`. Here are the key settings:
-
-### Jira
-
-```yaml
-jira:
-  project_keys: [BG]                    # Jira project prefixes to look for
-  require_ticket: true                   # Fail PR if no ticket found
-  allowed_pr_statuses:                   # Tickets must be in one of these
-    - In Progress
-    - In Review
-    - Code Review
-  blocked_statuses: [Done, Closed, Cancelled]  # These block PRs
-  sync:
-    on_open: "In Review"                 # Transition when PR opens
-    on_merge: "Done"                     # Transition when PR merges
+```
+<type>/BG-<number>-<short-slug>
 ```
 
-### Hygiene
+### Hard Blocks (fail the PR)
+- Secret / API key pattern in diff
+- Missing `BG-<number>` in title
+- Description under 30 characters
 
-```yaml
-hygiene:
-  require_jira_in_title: true
-  min_body_length: 30
-  conventional_commit_prefixes: [feat, fix, docs, ...]
-```
+### Warnings (flagged, not blocking)
+- File with 500+ changed lines
+- PR touching 20+ files
+- Source files changed with no test file changes
+- `console.log`, `debugger`, `TODO/FIXME/HACK/XXX` left in code
 
-### Code Review
+> Files under `robodev/`, `.github/`, and `AGENTS.md` are excluded from pattern scanning and test-coverage checks.
 
-```yaml
-code_review:
-  max_changed_lines_per_file: 500
-  max_files_per_pr: 20
-  require_tests: true
-  banned_patterns:
-    - { label: "...", regex: "...", severity: error|warning }
-```
+### Pipeline Files
 
-### AI Review
+| File | Purpose |
+|------|---------|
+| `.github/workflows/pr-review.yml` | 4-gate review pipeline |
+| `.github/workflows/jira-sync.yml` | PR state → Jira status transitions |
+| `.github/PULL_REQUEST_TEMPLATE.md` | PR description template |
+| `robodev/config.yml` | **All tuneable rules and thresholds** |
 
-```yaml
-ai_review:
-  enabled: false          # Set to true to activate
-  model: "gpt-4o"
-  max_diff_chars: 60000   # Diffs larger than this are truncated
-  system_prompt: "..."    # Customise the reviewer personality
-```
-
-When enabled, the AI reviewer sends the PR diff to OpenAI and posts its analysis (Summary, Issues, Suggestions, Verdict) as part of the code review comment.
-
----
-
-## GitHub Secrets Required
-
-These are configured in the GitHub repo settings (Settings → Secrets and variables → Actions). They are **not** stored in code.
+### GitHub Secrets Required
 
 | Secret | Required? | Purpose |
 |--------|-----------|---------|
-| `GITHUB_TOKEN` | Auto-provided | GitHub Actions provides this automatically — no setup needed |
-| `JIRA_BASE_URL` | Yes | Jira instance URL, e.g. `https://yourteam.atlassian.net` |
-| `JIRA_USER_EMAIL` | Yes | Email address for Jira API authentication |
-| `JIRA_API_TOKEN` | Yes | Jira API token for Basic auth |
-| `OPENAI_API_KEY` | Only if AI review enabled | OpenAI API key for GPT-powered review |
+| `GITHUB_TOKEN` | Auto | Provided by GitHub Actions |
+| `JIRA_BASE_URL` | Yes | e.g. `https://yourteam.atlassian.net` |
+| `JIRA_USER_EMAIL` | Yes | Jira auth email |
+| `JIRA_API_TOKEN` | Yes | Jira API token |
+| `OPENAI_API_KEY` | Optional | Only if `ai_review.enabled: true` in config.yml |
 
 ---
 
 ## Conventions for AI Agents
 
-When working in this codebase:
-
-1. **Never commit secrets** — the bot will catch them, but don't try
+1. **Never commit secrets** — RoboDev will catch them, but don't try
 2. **Always reference a Jira ticket** in PR titles and branch names
 3. **Keep PRs small** — under 20 files, under 500 changed lines per file
-4. **Add tests** for any source code changes
+4. **Add tests** for every source file with logic — `tests/*.test.ts`, no Phaser imports
 5. **Use conventional commits** for all commit messages and PR titles
-6. **Don't modify `robodev/`** unless explicitly asked — it's the review infrastructure
-7. **The app style is 8-bit retro** — respect this in any UI/asset work
-8. **Target platform is mobile web** — responsive, touch-first design
+6. **Don't modify `robodev/`** unless explicitly asked
+7. **All colours from `PALETTE` / `PALETTE_HEX` only** — imported from `src/constants.ts`
+8. **Never disable `pixelArt: true`** or change the 390×844 design resolution
+9. **Mobile-first, touch-first** — no hover states, no keyboard-only interactions
+10. **Read `docs/PLAN.md`** before making structural or design decisions
