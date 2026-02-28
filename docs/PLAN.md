@@ -22,7 +22,7 @@
 | TypeScript | ✅ Free | Type-safe game logic, IDE autocomplete |
 | GitHub Pages | ✅ Free | Hosting via `gh-pages` deploy action |
 | [Pixel Lab](https://pixellab.ai) Tier 1 | $12/mo | AI pixel art — characters, animations, environments, sprite sheets. Tier 1 unlocks animation tools, up to 320×320px output, commercial licence |
-| [LibreSprite](https://libresprite.github.io) | ✅ Free | Assemble/edit sprites, palette-lock to Aragon16, export PNG + JSON for Phaser |
+| [Aseprite](https://github.com/aseprite/aseprite) (self-compiled) | ✅ Free | Assemble/edit sprites, palette-lock to Aragon16, export PNG + Aseprite JSON for Phaser. Self-compilation is free for personal use per the EULA. Preferred over LibreSprite — actively maintained, has tilemap support and Lua scripting for palette automation |
 | [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) | ✅ Free | Google Font — 8-bit typeface for all UI text |
 | [BeepBox](https://beepbox.co) | ✅ Free | In-browser chiptune composer for music and SFX |
 | Aragon16 palette | ✅ In repo | `assets/palettes/aragon16.hex` — all art must use only these 16 colours |
@@ -62,12 +62,13 @@ File: `assets/palettes/aragon16.hex`
    → Reference Aragon16 palette colours in prompts
    → Export individual PNG frames (Pixel Lab animation tool)
         │
-2. Import PNGs into LibreSprite
+2. Import PNGs into Aseprite (self-compiled — free for personal use)
    → Assemble frames into animation timeline
-   → Palette-swap any off-palette colours to exact Aragon16 hex values
+   → Run Lua palette-clamp script to snap any off-palette pixels to
+     exact Aragon16 hex values automatically
    → Tag each animation (idle, run-left, run-right, swing, etc.)
         │
-3. Export from LibreSprite
+3. Export from Aseprite
    → Spritesheet PNG + Aseprite JSON format
    → Phaser 3 loads natively via scene.load.atlas('key', 'sheet.png', 'sheet.json')
         │

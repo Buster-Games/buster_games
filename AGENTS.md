@@ -29,7 +29,7 @@
 | Hosting | GitHub Pages | Deployed from `dist/` via `.github/workflows/deploy.yml` (BG-8) |
 | CI/Review | RoboDev (Python 3.11) | Automated PR gates — see section below |
 | Pixel art | Pixel Lab Tier 1 | AI sprite/animation generation |
-| Sprite assembly | LibreSprite | Frame assembly, palette lock, PNG + Aseprite JSON export |
+| Sprite assembly | Aseprite (self-compiled) | Frame assembly, palette lock via Lua script, PNG + Aseprite JSON export. Self-compilation is free for personal use. |
 | Font | Press Start 2P (Google Fonts) | Loaded in `index.html` before game starts |
 | Audio | BeepBox | Chiptune music and SFX |
 | Palette | Aragon16 | 16-colour palette — `assets/palettes/aragon16.hex` |
