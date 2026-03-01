@@ -5,11 +5,13 @@
   "description": "Buster Games — a mobile web retro game app for Lara",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/check-assets.js",
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "check:assets": "node scripts/check-assets.js"
   },
   "dependencies": {
     "phaser": "^3.90.0"
