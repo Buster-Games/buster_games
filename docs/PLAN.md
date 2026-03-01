@@ -22,35 +22,28 @@
 | TypeScript | ✅ Free | Type-safe game logic, IDE autocomplete |
 | GitHub Pages | ✅ Free | Hosting via `gh-pages` deploy action |
 | [Pixel Lab](https://pixellab.ai) Tier 1 | $12/mo | AI pixel art — characters, animations, environments, sprite sheets. Tier 1 unlocks animation tools, up to 320×320px output, commercial licence |
-| [Aseprite](https://github.com/aseprite/aseprite) (self-compiled) | ✅ Free | Assemble/edit sprites, palette-lock to Aragon16, export PNG + Aseprite JSON for Phaser. Self-compilation is free for personal use per the EULA. Preferred over LibreSprite — actively maintained, has tilemap support and Lua scripting for palette automation |
+| [Aseprite](https://github.com/aseprite/aseprite) (self-compiled) | ✅ Free | Assemble/edit sprites, palette-lock to Brazilian Afternoon, export PNG + Aseprite JSON for Phaser. Self-compilation is free for personal use per the EULA. Preferred over LibreSprite — actively maintained, has tilemap support and Lua scripting for palette automation |
 | [Press Start 2P](https://fonts.google.com/specimen/Press+Start+2P) | ✅ Free | Google Font — 8-bit typeface for all UI text |
 | [BeepBox](https://beepbox.co) | ✅ Free | In-browser chiptune composer for music and SFX |
-| Aragon16 palette | ✅ In repo | `assets/palettes/aragon16.hex` — all art must use only these 16 colours |
+| Brazilian Afternoon palette | ✅ In repo | `assets/palettes/brazilian-afternoon.hex` — ~30 warm colours for beach/summer aesthetic |
 
 ---
 
-## Colour Palette — Aragon16
+## Colour Palette — Brazilian Afternoon
 
-File: `assets/palettes/aragon16.hex`
+File: `assets/palettes/brazilian-afternoon.hex`
 
-| # | Hex | Role |
-|---|-----|------|
-| 1 | `#f9f8dd` | Cream / highlights |
-| 2 | `#d2e291` | Light green / grass |
-| 3 | `#a8d455` | Lime green / court grass |
-| 4 | `#9cab6c` | Olive green / foliage |
-| 5 | `#5c8d58` | Forest green / deep foliage |
-| 6 | `#3b473c` | Near-black green / shadows |
-| 7 | `#8b8893` | Light grey / UI panels |
-| 8 | `#54555c` | Dark grey / UI borders |
-| 9 | `#e0bf7a` | Warm tan / sand, skin highlights |
-| 10 | `#ba9572` | Medium skin / clay court |
-| 11 | `#876661` | Dusty rose-brown / shading |
-| 12 | `#272120` | Near-black / outlines |
-| 13 | `#b7c4d0` | Light steel blue / sky |
-| 14 | `#8daad6` | Cornflower blue / hard court |
-| 15 | `#9197b6` | Periwinkle / UI accents |
-| 16 | `#6b72d4` | Bright blue-violet / primary accent |
+A warm, beach-inspired palette with ~30 colours organised into groups:
+
+| Group | Colours | Usage |
+|-------|---------|-------|
+| Whites & Creams | `#ffffff`, `#e8d5ae`, `#e1c4a4` | Highlights, text, skin |
+| Tans & Browns | `#e1c074`, `#d49d56`, `#b58057`, `#925a3e` | Sand, wood, warm accents |
+| Oranges & Corals | `#ff8a27`, `#d06a49`, `#ac634a`, `#9c483b` | Sunset, energy, alerts |
+| Pinks & Roses | `#c66e6e`, `#b9a3a0`, `#844d45` | Accents, UI highlights |
+| Greens | `#bdbc69`, `#999c50`, `#699254`, `#467f53`, `#5a5f51`, `#868c65` | Foliage, court grass |
+| Blues | `#cee6e8`, `#7faec6`, `#3d94c0`, `#49617d`, `#93cad0`, `#8eb3ba` | Sky, water, buttons |
+| Greys & Darks | `#b6bab9`, `#929a9c`, `#6f7d85`, `#596674`, `#5c4e4e` | Shadows, outlines, UI |
 
 ---
 
@@ -59,13 +52,13 @@ File: `assets/palettes/aragon16.hex`
 ```
 1. Generate sprite frames in Pixel Lab (Tier 1)
    → Use pixel art style, ~32×32px characters
-   → Reference Aragon16 palette colours in prompts
+   → Reference Brazilian Afternoon palette colours in prompts
    → Export individual PNG frames (Pixel Lab animation tool)
         │
 2. Import PNGs into Aseprite (self-compiled — free for personal use)
    → Assemble frames into animation timeline
    → Run Lua palette-clamp script to snap any off-palette pixels to
-     exact Aragon16 hex values automatically
+     exact Brazilian Afternoon hex values automatically
    → Tag each animation (idle, run-left, run-right, swing, etc.)
         │
 3. Export from Aseprite
@@ -83,11 +76,10 @@ File: `assets/palettes/aragon16.hex`
 ```
 buster_games/
 ├── src/
-│   ├── index.html
 │   ├── main.ts                      ← Phaser game config + scene registry
+│   ├── constants.ts                 ← PALETTE, PALETTE_HEX, FONT - import from here
 │   ├── scenes/
-│   │   ├── BootScene.ts             ← Preload all assets
-│   │   ├── HomeScene.ts             ← Van + beach hero, game select buttons
+│   │   ├── HomeScene.ts             ← Entry point - title, birthday message, game select
 │   │   ├── CampaignMenuScene.ts     ← Campaign entry point
 │   │   ├── CutsceneScene.ts         ← Reusable dialogue + animation player
 │   │   ├── DriveScene.ts            ← Buster drives between matches (parallax)
@@ -109,15 +101,16 @@ buster_games/
 │       └── DialogueBox.ts           ← Speaker portrait + typewriter text box
 ├── assets/
 │   ├── palettes/
-│   │   └── aragon16.hex
+│   │   └── brazilian-afternoon.hex
 │   ├── sprites/
 │   │   ├── lara/
 │   │   ├── asier/
 │   │   ├── nic-gorilla/
 │   │   ├── opponents/
 │   │   └── buster-van/
+│   ├── items/                       ← UI icons (tennis racquet, van, etc.)
 │   ├── backgrounds/
-│   │   ├── home-beach.png
+│   │   ├── home-beach.png           ← Home screen — Lara & Asier on Buster at beach
 │   │   ├── courts/
 │   │   └── cutscene-panels/
 │   ├── audio/
@@ -127,6 +120,7 @@ buster_games/
 ├── tests/
 ├── docs/
 │   └── PLAN.md                      ← This file
+├── index.html
 ├── package.json
 ├── tsconfig.json
 └── vite.config.ts
@@ -137,23 +131,22 @@ buster_games/
 ## Scene Flow
 
 ```
-BootScene (preload all assets)
-    └─► HomeScene
-            ├─► Love at First Serve
-            │       ├─► Campaign
-            │       │       ├─► CutsceneScene: Nic steals Asier (intro)
-            │       │       ├─► [Loop for each opponent]
-            │       │       │       ├─► DriveScene: Buster drives to location
-            │       │       │       ├─► CutsceneScene: pre-match taunt
-            │       │       │       ├─► TennisScene: match
-            │       │       │       └─► CutsceneScene: post-match reaction
-            │       │       ├─► TennisScene: Final vs Nic (gorilla)
-            │       │       └─► CutsceneScene: Nic returns Asier → drive off in Buster
-            │       └─► Quick Match
-            │               ├─► QuickMatchScene: pick opponent + set length (1/3/5)
-            │               └─► TennisScene → result screen → return to menu
-            └─► Buster Drives
-                    └─► ComingSoonScene
+HomeScene (entry point - title + game select)
+        ├─► Love at First Serve
+        │       ├─► Campaign
+        │       │       ├─► CutsceneScene: Nic steals Asier (intro)
+        │       │       ├─► [Loop for each opponent]
+        │       │       │       ├─► DriveScene: Buster drives to location
+        │       │       │       ├─► CutsceneScene: pre-match taunt
+        │       │       │       ├─► TennisScene: match
+        │       │       │       └─► CutsceneScene: post-match reaction
+        │       │       ├─► TennisScene: Final vs Nic (gorilla)
+        │       │       └─► CutsceneScene: Nic returns Asier → drive off in Buster
+        │       └─► Quick Match
+        │               ├─► QuickMatchScene: pick opponent + set length (1/3/5)
+        │               └─► TennisScene → result screen → return to menu
+        └─► Buster Drives
+                └─► ComingSoonScene
 ```
 
 ---
@@ -211,18 +204,104 @@ BootScene (preload all assets)
 
 ---
 
-## Jira Ticket Reference
+## Ticket Breakdown by Epic
 
-See the Jira board (BG project) for the full ticket breakdown. Epics:
+### Epic 1 — Project Foundation & Infrastructure ✅ DONE
 
-| Epic | Title |
-|------|-------|
-| BG-6 | Project Foundation & Infrastructure |
-| BG-11 | Home Screen |
-| BG-12 | Tennis Core Engine |
-| BG-13 | Cutscene & Dialogue System |
-| BG-14 | Buster Drive Transition |
-| BG-15 | Campaign Mode |
-| BG-16 | Quick Match Mode |
-| BG-17 | Game Assets |
-| BG-18 | Coming Soon Screen |
+| Ticket | Type | Title | Status |
+|--------|------|-------|--------|
+| BG-1.1 | Story | Scaffold Vite + Phaser 3 + TypeScript | ✅ Done |
+| BG-1.2 | Story | Configure GitHub Pages deployment | ✅ Done |
+| BG-1.3 | Story | Establish folder structure | ✅ Done |
+
+---
+
+### Epic 2 — Home Screen ✅ DONE
+
+| Ticket | Type | Title | Status |
+|--------|------|-------|--------|
+| BG-2.1 | Story | Build Home Screen scene | ✅ Done |
+| BG-2.2 | Story | Add game selection buttons | ✅ Done |
+
+---
+
+### Epic 3 — Tennis Core Engine 🎯 NEXT
+
+The core gameplay. When player taps "Love at First Serve", go straight to a tennis match.
+
+| Ticket | Type | Title | Description | Status |
+|--------|------|-------|-------------|--------|
+| BG-3.1 | Story | Tennis court background + scene setup | TennisScene.ts — pixel court render, basic scene structure | |
+| BG-3.2 | Story | Scoreboard UI | Overlay showing names, sets, games, points in palette colours | |
+| BG-3.3 | Story | Ball physics and arc system | Ball.ts — parabolic arc via tweens, ball shadow, bounce | |
+| BG-3.4 | Story | Player auto-run movement | Player.ts — Lara auto-positions toward ball landing zone | |
+| BG-3.5 | Story | Tap-to-hit timing mechanic | Timing offset on tap → early=left, on-time=optimal, late=right. Visual timing indicator | |
+| BG-3.6 | Story | AI opponent movement and shot logic | Opponent.ts — AI auto-positions and returns; difficulty 0–1 scale | |
+| BG-3.7 | Story | Full tennis scoring system | Scoreboard.ts — 0/15/30/40/deuce/advantage, game/set/match win logic | |
+| BG-3.8 | Story | Match end flow | Win/lose detection, result screen, return to menu | |
+
+**Build order:** 3.1 → 3.3 → 3.2 → 3.4 → 3.5 → 3.6 → 3.7 → 3.8
+
+---
+
+### Epic 4 — Cutscene & Dialogue System
+
+| Ticket | Type | Title | Description | Status |
+|--------|------|-------|-------------|--------|
+| BG-4.1 | Story | Reusable dialogue box component | DialogueBox.ts — portrait + typewriter text effect | |
+| BG-4.2 | Story | Cutscene scene player | CutsceneScene.ts — script array player, tap to advance, transitions | |
+| BG-4.3 | Story | Opening cutscene: Nic steals Asier | Script + panels for intro sequence | |
+| BG-4.4 | Story | Per-opponent pre/post match cutscenes | Dialogue scripts for all 6 opponents in opponents.ts | |
+| BG-4.5 | Story | Victory cutscene: Nic returns Asier | Final cutscene — handover, celebration, drive off in Buster | |
+
+---
+
+### Epic 5 — Buster Drive Transition
+
+| Ticket | Type | Title | Description | Status |
+|--------|------|-------|-------------|--------|
+| BG-5.1 | Story | Buster Drive parallax scrolling scene | DriveScene.ts — multi-layer TileSprite parallax, Buster van tween | |
+| BG-5.2 | Story | Campaign progress map overlay | Illustrated map with opponent location markers | |
+
+---
+
+### Epic 6 — Campaign Mode
+
+| Ticket | Type | Title | Description | Status |
+|--------|------|-------|-------------|--------|
+| BG-6.1 | Story | Campaign state manager | CampaignManager.ts — tracks match index, results; persists to localStorage | |
+| BG-6.2 | Story | Wire full campaign end-to-end | Connect all scenes in sequence. Full playthrough from intro to victory | |
+
+---
+
+### Epic 7 — Quick Match Mode
+
+| Ticket | Type | Title | Description | Status |
+|--------|------|-------|-------------|--------|
+| BG-7.1 | Story | Opponent selection screen | 6 opponent portrait cards with name + difficulty; tap to select | |
+| BG-7.2 | Story | Set length selection | 1/3/5 set choice UI | |
+| BG-7.3 | Story | Quick Match flow | Launch TennisScene → result screen → menu | |
+
+---
+
+### Epic 8 — Game Assets
+
+| Ticket | Type | Title | Description | Status |
+|--------|------|-------|-------------|--------|
+| BG-8.1 | Story | Lara player sprite sheet | idle, run-L/R, swing-forehand, swing-backhand, celebrate | |
+| BG-8.2 | Story | Asier sprite sheet | idle, wave, being-carried | |
+| BG-8.3 | Story | Nic (gorilla) sprite sheet | idle, stomp, swing, celebrate, hand-over-Asier | |
+| BG-8.4 | Story | Opponent sprite sheets (all 6) | Emeric, Mum & Collin, Ammie/Gabby/Hannah, Dad & Rita, Roger Federer | |
+| BG-8.5 | Story | Court backgrounds | 6 different court backgrounds for each opponent | |
+| BG-8.6 | Story | Drive parallax layers | Sky, hills, road layers for DriveScene | |
+| BG-8.7 | Story | UI assets | Buttons, scoreboard, dialogue box, timing indicator | |
+| BG-8.8 | Story | Audio: music | Home theme, match theme, victory jingle, defeat sting (BeepBox) | |
+| BG-8.9 | Story | Audio: SFX | Ball hit, footstep, crowd, gorilla roar, van engine | |
+
+---
+
+### Epic 9 — Coming Soon Screen
+
+| Ticket | Type | Title | Description | Status |
+|--------|------|-------|-------------|--------|
+| BG-9.1 | Story | Buster Drives coming soon scene | ComingSoonScene.ts — Buster van art, "COMING SOON" text, tap to return | |

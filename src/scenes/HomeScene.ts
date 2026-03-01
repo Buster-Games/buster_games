@@ -78,8 +78,7 @@ export class HomeScene extends Phaser.Scene {
       'icon-racquet',
       true,
       () => {
-        // TODO: Navigate to tennis menu/campaign
-        console.log('Love at First Serve selected');
+        this.scene.start('TennisScene');
       }
     );
 
