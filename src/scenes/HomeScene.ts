@@ -219,27 +219,25 @@ export class HomeScene extends Phaser.Scene {
       container.add(badge);
     }
 
-    // Floating animation for enabled buttons
-    if (enabled) {
-      this.tweens.add({
-        targets: container,
-        y: y - 3,
-        duration: 1500,
-        ease: 'Sine.easeInOut',
-        yoyo: true,
-        repeat: -1,
-      });
+    // Floating animation for all buttons
+    this.tweens.add({
+      targets: container,
+      y: y - 3,
+      duration: 1500,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
 
-      // Subtle shadow pulse synced with float
-      this.tweens.add({
-        targets: shadow,
-        alpha: 0.3,
-        duration: 1500,
-        ease: 'Sine.easeInOut',
-        yoyo: true,
-        repeat: -1,
-      });
-    }
+    // Subtle shadow pulse synced with float
+    this.tweens.add({
+      targets: shadow,
+      alpha: 0.3,
+      duration: 1500,
+      ease: 'Sine.easeInOut',
+      yoyo: true,
+      repeat: -1,
+    });
 
     // Hit area for interaction
     const hitArea = this.add
