@@ -171,8 +171,15 @@ export class TennisScene extends Phaser.Scene {
     });
 
     // Score callbacks
-    this.scoreboard.onGameWon = (winner) => {
-      console.log(`Game won by ${winner}!`);
+    this.scoreboard.onGameWon = (_winner) => {
+      // Alternate server between games (traditional tennis rules)
+      this.servingPlayer = this.servingPlayer === 'player' ? 'opponent' : 'player';
+    };
+
+    // Server also alternates when a set ends (the game that closed the set
+    // doesn't fire onGameWon, so we handle it here too)
+    this.scoreboard.onSetWon = (_winner) => {
+      this.servingPlayer = this.servingPlayer === 'player' ? 'opponent' : 'player';
     };
 
     this.scoreboard.onMatchWon = (winner) => {
@@ -235,7 +242,8 @@ export class TennisScene extends Phaser.Scene {
         break;
 
       case 'game-over':
-        // Restart match
+        // Restart match — player serves first
+        this.servingPlayer = 'player';
         this.scoreboard.resetMatch();
         this._startServe();
         break;
@@ -445,9 +453,7 @@ export class TennisScene extends Phaser.Scene {
   private _scorePoint(winner: 'player' | 'opponent'): void {
     this.gameState = 'point-over';
     this.scoreboard.scorePoint(winner);
-
-    // Alternate server
-    this.servingPlayer = this.servingPlayer === 'player' ? 'opponent' : 'player';
+    // Server stays the same for the whole game; rotation happens in onGameWon / onSetWon.
 
     // Play celebration for the winner
     if (winner === 'player') {
