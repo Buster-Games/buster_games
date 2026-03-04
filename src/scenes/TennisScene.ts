@@ -532,7 +532,7 @@ export class TennisScene extends Phaser.Scene {
 
     // Court name label (top-left below back button)
     this.add
-      .text(20, 108, `COURT: ${courtDef.name} (${this.courtId})`, {
+      .text(20, 108, `COURT: ${courtDef.name}`, {
         fontFamily: FONT,
         fontSize: '8px',
         color: '#00ff00',
