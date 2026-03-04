@@ -57,8 +57,11 @@ export class Player {
   // Perspective scaling function (set by TennisScene)
   public perspectiveScale: ((y: number) => number) | null = null;
 
-  // Court bounds (set by TennisScene)
+  // Court bounds (set by TennisScene) — rectangular fallback
   public courtBounds: CourtBounds | null = null;
+
+  // Trapezoid-aware position clamping (takes priority over courtBounds)
+  public clampPosition: ((x: number, y: number) => { x: number; y: number }) | null = null;
 
   constructor(config: PlayerConfig) {
     this.scene = config.scene;
@@ -278,8 +281,12 @@ export class Player {
     let newX = this._x + dx * ratio;
     let newY = this._y + dy * ratio;
 
-    // Clamp to court bounds
-    if (this.courtBounds) {
+    // Clamp to court bounds (trapezoid clamp takes priority)
+    if (this.clampPosition) {
+      const clamped = this.clampPosition(newX, newY);
+      newX = clamped.x;
+      newY = clamped.y;
+    } else if (this.courtBounds) {
       newX = Math.max(this.courtBounds.left, Math.min(this.courtBounds.right, newX));
       newY = Math.max(this.courtBounds.top, Math.min(this.courtBounds.bottom, newY));
     }

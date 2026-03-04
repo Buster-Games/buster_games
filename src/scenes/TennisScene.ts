@@ -4,10 +4,17 @@ import {
   Ball,
   Player,
   Scoreboard,
+  CourtGeometry,
+  COURTS,
+  DEFAULT_COURT_ID,
+  resolveCourtPoints,
   preloadLaraSprites,
   createLaraAnimations,
   type Direction,
 } from '../game/tennis';
+
+/** Set to true to draw the court geometry overlay for coordinate calibration. */
+const DEBUG_COURT = true;
 
 /**
  * Game state for the tennis match.
@@ -42,14 +49,14 @@ export class TennisScene extends Phaser.Scene {
   private hitWindowTimer: Phaser.Time.TimerEvent | null = null;
   private hitIndicator!: Phaser.GameObjects.Arc;
 
-  // Court configuration
-  private courtBounds = {
-    left: 60,
-    right: 330,
-    top: 280,
-    bottom: 720,
-    netY: 450,
-  };
+  // Court geometry (perspective-correct trapezoid model)
+  private courtGeometry!: CourtGeometry;
+
+  // Which court to use (can be set via scene data)
+  private courtId: string = DEFAULT_COURT_ID;
+
+  // Track who hit the ball last (for correct out-of-bounds attribution)
+  private lastHitter: 'player' | 'opponent' = 'player';
 
   // Perspective scaling
   private perspectiveScale!: (y: number) => number;
@@ -59,8 +66,16 @@ export class TennisScene extends Phaser.Scene {
   }
 
   preload(): void {
+    // Accept court ID from scene data (e.g. this.scene.start('TennisScene', { courtId: 'grass-somerset' }))
+    const data = this.scene.settings.data as Record<string, unknown> | undefined;
+    if (data?.courtId && typeof data.courtId === 'string' && COURTS[data.courtId]) {
+      this.courtId = data.courtId;
+    }
+
+    const courtDef = COURTS[this.courtId];
+
     // Court background
-    this.load.image('court-clay', 'backgrounds/courts/clay-fingal.png');
+    this.load.image(courtDef.textureKey, courtDef.asset);
 
     // Tennis ball
     this.load.image('tennis-ball', 'items/tenis-ball.png');
@@ -72,28 +87,25 @@ export class TennisScene extends Phaser.Scene {
   create(): void {
     const { width, height } = this.scale;
 
-    // Update court bounds based on actual screen size
-    this.courtBounds = {
-      left: width * 0.15,
-      right: width * 0.85,
-      top: height * 0.32,
-      bottom: height * 0.85,
-      netY: height * 0.5,
-    };
+    // ── Court geometry (perspective-correct trapezoid) ────────
+    // Points are defined per-court in src/game/tennis/courts.ts
+    // Toggle DEBUG_COURT at the top of this file to see the overlay.
+    const courtDef = COURTS[this.courtId];
+    this.courtGeometry = new CourtGeometry(
+      resolveCourtPoints(this.courtId, width, height),
+    );
 
     // ── Perspective scaling setup ────────────────────────────
-    const courtTopY = height * 0.3;
-    const courtBottomY = height * 0.85;
     const perspMinFactor = 0.55;
 
     this.perspectiveScale = (y: number): number => {
-      const t = (y - courtTopY) / (courtBottomY - courtTopY);
+      const t = (y - this.courtGeometry.farY) / (this.courtGeometry.nearY - this.courtGeometry.farY);
       const clamped = Math.min(Math.max(t, 0), 1);
       return 0.65 * (perspMinFactor + (1 - perspMinFactor) * clamped);
     };
 
     // ── Court background ─────────────────────────────────────
-    const court = this.add.image(width / 2, height / 2, 'court-clay');
+    const court = this.add.image(width / 2, height / 2, courtDef.textureKey);
     const scaleX = width / court.width;
     const scaleY = height / court.height;
     const scale = Math.max(scaleX, scaleY);
@@ -104,50 +116,38 @@ export class TennisScene extends Phaser.Scene {
     createLaraAnimations(this);
 
     // ── Player (Lara) ────────────────────────────────────────
-    const playerStartX = width / 2;
-    const playerStartY = height * 0.8;
+    const playerStart = this.courtGeometry.playerDefaultPosition();
 
     this.player = new Player({
       scene: this,
-      x: playerStartX,
-      y: playerStartY,
+      x: playerStart.x,
+      y: playerStart.y,
       spriteKey: 'lara',
     });
     this.player.perspectiveScale = this.perspectiveScale;
-    this.player.courtBounds = {
-      left: this.courtBounds.left,
-      right: this.courtBounds.right,
-      top: this.courtBounds.netY + 20, // Player can't go past net
-      bottom: this.courtBounds.bottom,
-    };
-    this.player.setScale(this.perspectiveScale(playerStartY));
+    this.player.clampPosition = (x, y) => this.courtGeometry.clampToPlayerSide(x, y);
+    this.player.setScale(this.perspectiveScale(playerStart.y));
 
     // ── Opponent ─────────────────────────────────────────────
-    const opponentStartX = width / 2;
-    const opponentStartY = height * 0.38;
+    const opponentStart = this.courtGeometry.opponentDefaultPosition();
 
     this.opponent = new Player({
       scene: this,
-      x: opponentStartX,
-      y: opponentStartY,
+      x: opponentStart.x,
+      y: opponentStart.y,
       spriteKey: 'lara',
       isOpponent: true,
       tint: 0xff8888,
     });
     this.opponent.perspectiveScale = this.perspectiveScale;
-    this.opponent.courtBounds = {
-      left: this.courtBounds.left,
-      right: this.courtBounds.right,
-      top: this.courtBounds.top,
-      bottom: this.courtBounds.netY - 20, // Opponent can't go past net
-    };
-    this.opponent.setScale(this.perspectiveScale(opponentStartY));
+    this.opponent.clampPosition = (x, y) => this.courtGeometry.clampToOpponentSide(x, y);
+    this.opponent.setScale(this.perspectiveScale(opponentStart.y));
 
     // ── Ball ─────────────────────────────────────────────────
     this.ball = new Ball({
       scene: this,
-      x: playerStartX + 30,
-      y: playerStartY - 20,
+      x: playerStart.x + 30,
+      y: playerStart.y - 20,
       scale: 0.1,
     });
 
@@ -211,6 +211,11 @@ export class TennisScene extends Phaser.Scene {
 
     // ── Start serving ────────────────────────────────────────
     this._startServe();
+
+    // ── Debug overlay ────────────────────────────────────────
+    if (DEBUG_COURT) {
+      this._drawDebugOverlay();
+    }
   }
 
   update(_time: number, delta: number): void {
@@ -256,16 +261,17 @@ export class TennisScene extends Phaser.Scene {
   private _startServe(): void {
     this.gameState = 'serving';
     this.rallyCount = 0;
-
-    const { width, height } = this.scale;
+    this.lastHitter = this.servingPlayer;
 
     // Clear any in-flight movement and reset to idle
     this.player.stop();
     this.opponent.stop();
 
-    // Reset positions
-    this.player.setPosition(width / 2, height * 0.8);
-    this.opponent.setPosition(width / 2, height * 0.38);
+    // Reset positions to default spots
+    const playerPos = this.courtGeometry.playerDefaultPosition();
+    const opponentPos = this.courtGeometry.opponentDefaultPosition();
+    this.player.setPosition(playerPos.x, playerPos.y);
+    this.opponent.setPosition(opponentPos.x, opponentPos.y);
 
     // Ball with server
     if (this.servingPlayer === 'player') {
@@ -283,19 +289,19 @@ export class TennisScene extends Phaser.Scene {
    */
   private _serve(): void {
     if (this.servingPlayer === 'player') {
-      // Player serves to opponent's side
-      const targetX = this._randomInRange(this.courtBounds.left + 50, this.courtBounds.right - 50);
-      const targetY = this._randomInRange(this.courtBounds.top + 30, this.courtBounds.netY - 50);
+      // Player serves to opponent's half
+      const target = this.courtGeometry.randomPointInHalf('opponent', 15);
+      this.lastHitter = 'player';
 
-      this.ball.hit(targetX, targetY);
-      this.player.swing(targetX >= this.player.x ? 'north-east' : 'north-west');
+      this.ball.hit(target.x, target.y);
+      this.player.swing(target.x >= this.player.x ? 'north-east' : 'north-west');
     } else {
-      // Opponent serves to player's side
-      const targetX = this._randomInRange(this.courtBounds.left + 50, this.courtBounds.right - 50);
-      const targetY = this._randomInRange(this.courtBounds.netY + 50, this.courtBounds.bottom - 30);
+      // Opponent serves to player's half
+      const target = this.courtGeometry.randomPointInHalf('player', 15);
+      this.lastHitter = 'opponent';
 
-      this.ball.hit(targetX, targetY);
-      this.opponent.swing(targetX >= this.opponent.x ? 'east' : 'west');
+      this.ball.hit(target.x, target.y);
+      this.opponent.swing(target.x >= this.opponent.x ? 'east' : 'west');
     }
 
     this.gameState = 'rally';
@@ -308,39 +314,33 @@ export class TennisScene extends Phaser.Scene {
   private _onBallLand(x: number, y: number): void {
     if (this.gameState !== 'rally') return;
 
-    // Check if ball is out
-    if (this._isBallOut(x, y)) {
-      // Point to the player who didn't hit it out
-      const lastHitter = this.rallyCount % 2 === 1 ? 'player' : 'opponent';
-      const winner = lastHitter === 'player' ? 'opponent' : 'player';
+    // Check if ball landed out of bounds or in the net zone
+    if (!this.courtGeometry.isInCourt(x, y)) {
+      // Last hitter sent the ball out → point to the other player
+      const winner = this.lastHitter === 'player' ? 'opponent' : 'player';
       this._scorePoint(winner);
       return;
     }
 
-    // Determine who needs to hit
-    const isOnPlayerSide = y > this.courtBounds.netY;
+    // Determine who needs to return based on which side the ball landed
+    const isOnPlayerSide = this.courtGeometry.isOnPlayerSide(x, y);
 
     if (isOnPlayerSide) {
-      // Player needs to hit - move player and show hit window
+      // Player needs to hit — move toward ball and show hit window
       this.player.moveTo(x, y + 30);
       this._startHitWindow(x, y);
     } else {
-      // Opponent needs to hit - AI takes over
-      this.opponent.moveTo(x, y + 30);
+      // Opponent needs to hit — move toward ball (slightly behind, away from net)
+      this.opponent.moveTo(x, y - 10);
       this._opponentHit(x, y);
     }
   }
 
   /**
-   * Check if ball is out of bounds.
+   * Check if ball is out of bounds (outside the court trapezoid or in the net zone).
    */
   private _isBallOut(x: number, y: number): boolean {
-    return (
-      x < this.courtBounds.left ||
-      x > this.courtBounds.right ||
-      y < this.courtBounds.top ||
-      y > this.courtBounds.bottom
-    );
+    return !this.courtGeometry.isInCourt(x, y);
   }
 
   /**
@@ -388,16 +388,16 @@ export class TennisScene extends Phaser.Scene {
       this.hitWindowTimer = null;
     }
 
-    // Calculate return shot first so swing direction matches ball direction
-    const targetX = this._randomInRange(this.courtBounds.left + 50, this.courtBounds.right - 50);
-    const targetY = this._randomInRange(this.courtBounds.top + 30, this.courtBounds.netY - 50);
+    // Calculate return shot into the opponent's half
+    const target = this.courtGeometry.randomPointInHalf('opponent', 15);
+    this.lastHitter = 'player';
 
     // Play swing animation based on which side the ball is going
-    this.player.swing(targetX >= this.player.x ? 'north-east' : 'north-west');
+    this.player.swing(target.x >= this.player.x ? 'north-east' : 'north-west');
 
     // Small delay before ball leaves
     this.time.delayedCall(150, () => {
-      this.ball.hit(targetX, targetY);
+      this.ball.hit(target.x, target.y);
       this.rallyCount++;
     });
   }
@@ -434,14 +434,14 @@ export class TennisScene extends Phaser.Scene {
         return;
       }
 
-      // Opponent returns
-      const targetX = this._randomInRange(this.courtBounds.left + 50, this.courtBounds.right - 50);
-      const targetY = this._randomInRange(this.courtBounds.netY + 50, this.courtBounds.bottom - 30);
+      // Opponent returns into the player's half
+      const target = this.courtGeometry.randomPointInHalf('player', 15);
+      this.lastHitter = 'opponent';
 
-      this.opponent.swing(targetX >= this.opponent.x ? 'east' : 'west');
+      this.opponent.swing(target.x >= this.opponent.x ? 'east' : 'west');
 
       this.time.delayedCall(150, () => {
-        this.ball.hit(targetX, targetY);
+        this.ball.hit(target.x, target.y);
         this.rallyCount++;
       });
     });
@@ -518,6 +518,99 @@ export class TennisScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(500);
+  }
+
+  /**
+   * Draw a semi-transparent overlay showing the court geometry for calibration.
+   * Enable by setting DEBUG_COURT = true at the top of this file.
+   */
+  private _drawDebugOverlay(): void {
+    const g = this.add.graphics();
+    g.setDepth(999);
+    const p = this.courtGeometry.points;
+    const courtDef = COURTS[this.courtId];
+
+    // Court name label (top-left below back button)
+    this.add
+      .text(20, 108, `COURT: ${courtDef.name} (${this.courtId})`, {
+        fontFamily: FONT,
+        fontSize: '8px',
+        color: '#00ff00',
+        backgroundColor: '#000000',
+        padding: { x: 4, y: 2 },
+      })
+      .setDepth(999);
+
+    // Draw outer court trapezoid (white)
+    g.lineStyle(2, 0xffffff, 0.8);
+    g.beginPath();
+    g.moveTo(p.farLeft.x, p.farLeft.y);
+    g.lineTo(p.farRight.x, p.farRight.y);
+    g.lineTo(p.nearRight.x, p.nearRight.y);
+    g.lineTo(p.nearLeft.x, p.nearLeft.y);
+    g.closePath();
+    g.strokePath();
+
+    // Draw net zone (red band)
+    g.lineStyle(2, 0xff0000, 0.8);
+    g.beginPath();
+    g.moveTo(p.netFarLeft.x, p.netFarLeft.y);
+    g.lineTo(p.netFarRight.x, p.netFarRight.y);
+    g.strokePath();
+    g.beginPath();
+    g.moveTo(p.netNearLeft.x, p.netNearLeft.y);
+    g.lineTo(p.netNearRight.x, p.netNearRight.y);
+    g.strokePath();
+
+    // Fill net zone semi-transparent red
+    g.fillStyle(0xff0000, 0.15);
+    g.beginPath();
+    g.moveTo(p.netFarLeft.x, p.netFarLeft.y);
+    g.lineTo(p.netFarRight.x, p.netFarRight.y);
+    g.lineTo(p.netNearRight.x, p.netNearRight.y);
+    g.lineTo(p.netNearLeft.x, p.netNearLeft.y);
+    g.closePath();
+    g.fillPath();
+
+    // Draw sidelines (yellow)
+    g.lineStyle(1, 0xffff00, 0.5);
+    g.beginPath();
+    g.moveTo(p.farLeft.x, p.farLeft.y);
+    g.lineTo(p.nearLeft.x, p.nearLeft.y);
+    g.strokePath();
+    g.beginPath();
+    g.moveTo(p.farRight.x, p.farRight.y);
+    g.lineTo(p.nearRight.x, p.nearRight.y);
+    g.strokePath();
+
+    // Draw dots at each key point with labels
+    const pointEntries: [string, { x: number; y: number }][] = [
+      ['farL', p.farLeft],
+      ['farR', p.farRight],
+      ['netFL', p.netFarLeft],
+      ['netFR', p.netFarRight],
+      ['netNL', p.netNearLeft],
+      ['netNR', p.netNearRight],
+      ['nearL', p.nearLeft],
+      ['nearR', p.nearRight],
+    ];
+
+    for (const [label, pt] of pointEntries) {
+      g.fillStyle(0x00ff00, 1);
+      g.fillCircle(pt.x, pt.y, 4);
+      this.add
+        .text(pt.x + 6, pt.y - 8, `${label}\n${Math.round(pt.x)},${Math.round(pt.y)}`, {
+          fontFamily: FONT,
+          fontSize: '7px',
+          color: '#00ff00',
+        })
+        .setDepth(999);
+    }
+
+    // Log tap coordinates to console for calibration
+    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
+      console.log(`[DEBUG_COURT] tap at (${Math.round(pointer.x)}, ${Math.round(pointer.y)})`);
+    });
   }
 
   /**
