@@ -99,14 +99,14 @@ export const COURTS: Record<string, CourtDef> = {
     imageSize: { w: 3410, h: 5120 },
     points: {
       // TODO: calibrate — enter source image pixel coords
-      farLeft:      { x: 780, y: 2252 },
-      farRight:     { x: 2634, y: 2346 },
-      netFarLeft:   { x: 678, y: 2952 },
-      netFarRight:  { x: 2736, y: 2946 },
-      netNearLeft:  { x: 648, y: 3150 },
-      netNearRight: { x: 2778, y: 3150 },
-      nearLeft:     { x: 468, y: 4206 },
-      nearRight:    { x: 2958, y: 4206 },
+      farLeft:      { x: 831, y: 2506 },
+      farRight:     { x: 2600, y: 2506 },
+      netFarLeft:   { x: 708, y: 2941 },
+      netFarRight:  { x: 2713, y: 2940 },
+      netNearLeft:  { x: 662, y: 3116 },
+      netNearRight: { x: 2762, y: 3129 },
+      nearLeft:     { x: 380, y: 4111 },
+      nearRight:    { x: 3050, y: 4110 },
     },
   },
 } as const;
