@@ -154,18 +154,18 @@
           "animations/tennis-swing/north/frame_003.png"
         ]
       },
-      "custom-Celebration. Hands in the air. Tennis racquet in r": {
+      "celebration": {
         "south": [
-          "animations/custom-Celebration. Hands in the air. Tennis racquet in r/south/frame_000.png",
-          "animations/custom-Celebration. Hands in the air. Tennis racquet in r/south/frame_001.png",
-          "animations/custom-Celebration. Hands in the air. Tennis racquet in r/south/frame_002.png",
-          "animations/custom-Celebration. Hands in the air. Tennis racquet in r/south/frame_003.png"
+          "animations/celebration/south/frame_000.png",
+          "animations/celebration/south/frame_001.png",
+          "animations/celebration/south/frame_002.png",
+          "animations/celebration/south/frame_003.png"
         ],
         "north": [
-          "animations/custom-Celebration. Hands in the air. Tennis racquet in r/north/frame_000.png",
-          "animations/custom-Celebration. Hands in the air. Tennis racquet in r/north/frame_001.png",
-          "animations/custom-Celebration. Hands in the air. Tennis racquet in r/north/frame_002.png",
-          "animations/custom-Celebration. Hands in the air. Tennis racquet in r/north/frame_003.png"
+          "animations/celebration/north/frame_000.png",
+          "animations/celebration/north/frame_001.png",
+          "animations/celebration/north/frame_002.png",
+          "animations/celebration/north/frame_003.png"
         ]
       }
     }
@@ -8450,13 +8450,13 @@
         null,
         null
       ],
-      "custom-Celebration. Hands in the air. Tennis racquet in r_south": [
+      "celebration_south": [
         null,
         null,
         null,
         null
       ],
-      "custom-Celebration. Hands in the air. Tennis racquet in r_north": [
+      "celebration_north": [
         null,
         null,
         null,
