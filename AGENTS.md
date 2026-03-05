@@ -32,7 +32,7 @@
 | Sprite assembly | Aseprite (self-compiled) | Frame assembly, palette lock via Lua script, PNG + Aseprite JSON export. Self-compilation is free for personal use. |
 | Font | Press Start 2P (Google Fonts) | Loaded in `index.html` before game starts |
 | Audio | BeepBox | Chiptune music and SFX |
-| Palette | Aragon16 | 16-colour palette — `assets/palettes/aragon16.hex` |
+| Palette | Brazilian Afternoon | ~30-colour warm palette — `assets/palettes/brazilian-afternoon.hex` |
 
 ---
 
@@ -44,8 +44,7 @@ buster_games/
 │   ├── main.ts                      # Phaser game config + scene registry
 │   ├── constants.ts                 # PALETTE, PALETTE_HEX, FONT — import from here
 │   ├── scenes/
-│   │   ├── BootScene.ts             # First scene — splash screen, currently active
-│   │   ├── HomeScene.ts             # Van + beach hero, game select (BG-9)
+│   │   ├── HomeScene.ts             # Entry point — title, birthday message, game select
 │   │   ├── CutsceneScene.ts         # Reusable dialogue + animation player (BG-12)
 │   │   ├── DriveScene.ts            # Buster parallax drive transition (BG-15)
 │   │   ├── TennisScene.ts           # Core tennis gameplay (BG-8 to BG-11)
@@ -56,8 +55,9 @@ buster_games/
 │   │   └── campaign/               # CampaignManager.ts, opponents.ts
 │   └── ui/                         # Button.ts, DialogueBox.ts
 ├── assets/
-│   ├── palettes/aragon16.hex        # Aragon16 — all art must use only these 16 colours
+│   ├── palettes/brazilian-afternoon.hex  # Brazilian Afternoon — warm beach palette
 │   ├── sprites/                     # PNG + Aseprite JSON spritesheets per character
+│   ├── items/                       # UI icons (tennis racquet, van, etc.)
 │   ├── backgrounds/                 # Court and scene backgrounds
 │   └── audio/                      # music/ and sfx/
 ├── tests/                           # Vitest test files — mirror src/ structure
@@ -94,7 +94,7 @@ npm run preview      # Preview the production build locally
 ### Key Config Facts
 
 - **Design resolution:** 390 × 844px (iPhone 14 portrait baseline)
-- **Scaling:** `Phaser.Scale.FIT` + `autoCenter: CENTER_BOTH` — the canvas auto-fits any screen, no manual scaling needed
+- **Scaling:** `Phaser.Scale.EXPAND` — fills the entire screen on any device
 - **Pixel art mode:** `pixelArt: true` in `main.ts` — never disable this
 - **Base path:** `/buster_games/` in `vite.config.ts` — required for GitHub Pages subdirectory hosting
 
@@ -107,16 +107,18 @@ npm run preview      # Preview the production build locally
 - **Never** hard-code colour hex strings or font names anywhere else
 - `PALETTE` (numeric) → Phaser graphics, rectangles, geometry
 - `PALETTE_HEX` (CSS strings) → Phaser text `color` and `stroke` style properties
-- All 16 colours are in `assets/palettes/aragon16.hex` — do not introduce colours outside this palette
+- All colours are in `assets/palettes/brazilian-afternoon.hex` — prefer palette colours for consistency
 
 ### Scenes
 - Every scene class goes in `src/scenes/`
 - Register new scenes in the `scene` array in `src/main.ts`
 - Use `this.scene.start('SceneKey')` to transition between scenes
+- **HomeScene is the entry point** — no separate boot/splash screen
 
 ### Assets
 - Spritesheets: `assets/sprites/<character>/sheet.png` + `sheet.json` (Aseprite format)
-- Load via `this.load.atlas('key', 'sheet.png', 'sheet.json')` in `BootScene` preload (once preloading is built out)
+- Icons: `assets/items/` for UI icons (tennis racquet, van, etc.)
+- Load assets in the scene's `preload()` method
 - All asset paths are relative to the `public/` directory or `assets/` as configured in Vite
 
 ### TypeScript
@@ -219,6 +221,7 @@ Valid prefixes: `feat` `fix` `docs` `style` `refactor` `perf` `test` `build` `ci
 5. **Use conventional commits** for all commit messages and PR titles
 6. **Don't modify `robodev/`** unless explicitly asked
 7. **All colours from `PALETTE` / `PALETTE_HEX` only** — imported from `src/constants.ts`
-8. **Never disable `pixelArt: true`** or change the 390×844 design resolution
+8. **Never disable `pixelArt: true`** — crisp pixels are essential
 9. **Mobile-first, touch-first** — no hover states, no keyboard-only interactions
 10. **Read `docs/PLAN.md`** before making structural or design decisions
+11. **HomeScene is the entry point** — no separate boot/splash screen needed
