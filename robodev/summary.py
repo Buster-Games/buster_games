@@ -1,8 +1,8 @@
 # ──────────────────────────────────────────────────────────────
-# robodev/summary.py  — Gate 4: Post a final review-summary comment
+# robodev/summary.py  — Gate 5: Post a final review-summary comment
 # ──────────────────────────────────────────────────────────────
 """
-Collects results from the preceding jobs (hygiene, jira, code-review)
+Collects results from the preceding jobs (hygiene, jira, code-review, build-check)
 and posts a single consolidated summary comment on the PR.
 """
 from __future__ import annotations
@@ -29,8 +29,9 @@ def run() -> int:
     hygiene = os.environ.get("HYGIENE_RESULT", "unknown")
     jira = os.environ.get("JIRA_RESULT", "unknown")
     review = os.environ.get("REVIEW_RESULT", "unknown")
+    build = os.environ.get("BUILD_RESULT", "unknown")
 
-    all_passed = all(r == "success" for r in [hygiene, jira, review])
+    all_passed = all(r == "success" for r in [hygiene, jira, review, build])
 
     lines = [
         "## 📝 RoboDev Review Summary\n",
@@ -39,11 +40,17 @@ def run() -> int:
         f"| PR Hygiene | {_icon(hygiene)} {hygiene} |",
         f"| Jira Validation | {_icon(jira)} {jira} |",
         f"| Code Review | {_icon(review)} {review} |",
+        f"| Build Check | {_icon(build)} {build} |",
         "",
     ]
 
     if all_passed:
         lines.append("### ✅ All gates passed — ready for human review!")
+    elif build != "success":
+        lines.append(
+            "### ❌ Build check failed — merging this PR **will break deployment**.\n"
+            "Fix the build errors before merging."
+        )
     else:
         lines.append(
             "### ⚠️ One or more gates did not pass.\n"
@@ -57,9 +64,13 @@ def run() -> int:
             ("PR Hygiene", hygiene),
             ("Jira Validation", jira),
             ("Code Review", review),
+            ("Build Check", build),
         ] if result != "success"]
         print(f"Summary: {len(failed)} gate(s) failed — {', '.join(failed)}")
-        for name, result in [("PR Hygiene", hygiene), ("Jira Validation", jira), ("Code Review", review)]:
+        for name, result in [
+            ("PR Hygiene", hygiene), ("Jira Validation", jira),
+            ("Code Review", review), ("Build Check", build),
+        ]:
             icon = "✅" if result == "success" else "❌"
             print(f"  {icon} {name}: {result}")
         return 1

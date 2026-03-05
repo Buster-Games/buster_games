@@ -121,12 +121,44 @@ jobs:
         run: python -m robodev.reviewer
 
   # ──────────────────────────────────────────────
-  # Gate 4 — Final summary posted as PR comment
+  # Gate 4 — Build check (mirrors deploy.yml)
+  # ──────────────────────────────────────────────
+  build-check:
+    name: "🔨 Build Check"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check assets
+        run: npm run check:assets
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  # ──────────────────────────────────────────────
+  # Gate 5 — Final summary posted as PR comment
   # ──────────────────────────────────────────────
   review-summary:
     name: "📝 Review Summary"
     runs-on: ubuntu-latest
-    needs: [pr-hygiene, jira-check, code-review]
+    needs: [pr-hygiene, jira-check, code-review, build-check]
     if: always() && github.event_name == 'pull_request'
     steps:
       - name: Checkout repository
@@ -149,4 +181,5 @@ jobs:
           HYGIENE_RESULT: ${{ needs.pr-hygiene.result }}
           JIRA_RESULT: ${{ needs.jira-check.result }}
           REVIEW_RESULT: ${{ needs.code-review.result }}
+          BUILD_RESULT: ${{ needs.build-check.result }}
         run: python -m robodev.summary
