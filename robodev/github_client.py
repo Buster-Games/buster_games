@@ -33,7 +33,7 @@ def get_pr_files() -> list[dict]:
 def get_pr_diff() -> str:
     """Return the unified diff for the entire PR."""
     url = f"{API}/repos/{_repo()}/pulls/{_pr()}"
-    headers = {**github_headers(), "Accept": "application/vnd.github.v3.diff"}
+    headers = {**github_headers(), "Accept": "application/vnd.github.diff"}
     resp = requests.get(url, headers=headers, timeout=60)
     resp.raise_for_status()
     return resp.text
