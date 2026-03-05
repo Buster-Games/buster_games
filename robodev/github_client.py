@@ -31,7 +31,16 @@ def get_pr_files() -> list[dict]:
 
 
 def get_pr_diff() -> str:
-    """Return the unified diff for the entire PR."""
+    """Return the unified diff for the entire PR.
+
+    Reads from /tmp/pr.diff if pre-fetched by the CI workflow step,
+    otherwise falls back to the GitHub API.
+    """
+    import pathlib
+    cached = pathlib.Path("/tmp/pr.diff")
+    if cached.exists() and cached.stat().st_size > 0:
+        return cached.read_text(encoding="utf-8", errors="replace")
+
     url = f"{API}/repos/{_repo()}/pulls/{_pr()}"
     headers = {
         "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
