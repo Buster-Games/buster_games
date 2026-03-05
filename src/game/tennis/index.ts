@@ -9,4 +9,4 @@ export {
   type CourtDef,
   type CourtPointsImage,
 } from './courts';
-export { preloadLaraSprites, createLaraAnimations } from './sprites';
+export { preloadLaraSprites, createLaraAnimations, preloadCharacterSprites, createCharacterAnimations } from './sprites';

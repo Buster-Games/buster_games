@@ -79,7 +79,6 @@ export const COURTS: Record<string, CourtDef> = {
     textureKey: 'court-grass-somerset',
     imageSize: { w: 3410, h: 5120 },
     points: {
-      // TODO: calibrate — enter source image pixel coords
       farLeft:      { x: 906, y: 2565 },
       farRight:     { x: 2512, y: 2558 },
       netFarLeft:   { x: 765, y: 2945 },
@@ -98,7 +97,6 @@ export const COURTS: Record<string, CourtDef> = {
     textureKey: 'court-acrylic-pavo',
     imageSize: { w: 3410, h: 5120 },
     points: {
-      // TODO: calibrate — enter source image pixel coords
       farLeft:      { x: 831, y: 2506 },
       farRight:     { x: 2600, y: 2506 },
       netFarLeft:   { x: 708, y: 2941 },
@@ -107,6 +105,42 @@ export const COURTS: Record<string, CourtDef> = {
       netNearRight: { x: 2762, y: 3129 },
       nearLeft:     { x: 380, y: 4111 },
       nearRight:    { x: 3050, y: 4110 },
+    },
+  },
+
+  'grass-new-farm': {
+    id: 'grass-new-farm',
+    name: 'New Farm Grass',
+    asset: 'backgrounds/courts/grass-new-farm.png',
+    textureKey: 'court-grass-new-farm',
+    imageSize: { w: 3410, h: 5120 },
+    points: {
+      farLeft:      { x: 904, y: 2556 },
+      farRight:     { x: 2497, y: 2556 },
+      netFarLeft:   { x: 768, y: 2935 },
+      netFarRight:  { x: 2646, y: 2934 },
+      netNearLeft:  { x: 694, y: 3116 },
+      netNearRight: { x: 2716, y: 3122 },
+      nearLeft:     { x: 307, y: 4117 },
+      nearRight:    { x: 3107, y: 4119 },
+    },
+  },
+
+  'acrylic-marketst': {
+    id: 'acrylic-marketst',
+    name: 'Market St Acrylic',
+    asset: 'backgrounds/courts/acrylic-marketst.png',
+    textureKey: 'court-acrylic-marketst',
+    imageSize: { w: 3410, h: 5120 },
+    points: {
+      farLeft:      { x: 855, y: 2305 },
+      farRight:     { x: 2546, y: 2305 },
+      netFarLeft:   { x: 736, y: 2715 },
+      netFarRight:  { x: 2671, y: 2716 },
+      netNearLeft:  { x: 675, y: 2912 },
+      netNearRight: { x: 2740, y: 2912 },
+      nearLeft:     { x: 350, y: 3905 },
+      nearRight:    { x: 3066, y: 3905 },
     },
   },
 } as const;

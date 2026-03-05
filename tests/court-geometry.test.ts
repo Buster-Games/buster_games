@@ -179,4 +179,48 @@ describe('CourtGeometry', () => {
     const pos = court.opponentDefaultPosition();
     expect(court.isOnOpponentSide(pos.x, pos.y)).toBe(true);
   });
+
+  // ── servePosition ─────────────────────────────────────────
+
+  test('deuce serve position is right of centre on player half', () => {
+    const center = court.playerDefaultPosition();
+    const pos = court.servePosition('player', 'deuce');
+    expect(pos.y).toBeCloseTo(center.y);
+    expect(pos.x).toBeGreaterThan(center.x);
+  });
+
+  test('ad serve position is left of centre on player half', () => {
+    const center = court.playerDefaultPosition();
+    const pos = court.servePosition('player', 'ad');
+    expect(pos.y).toBeCloseTo(center.y);
+    expect(pos.x).toBeLessThan(center.x);
+  });
+
+  test('deuce serve position is right of centre on opponent half', () => {
+    const center = court.opponentDefaultPosition();
+    const pos = court.servePosition('opponent', 'deuce');
+    expect(pos.y).toBeCloseTo(center.y);
+    expect(pos.x).toBeGreaterThan(center.x);
+  });
+
+  test('ad serve position is left of centre on opponent half', () => {
+    const center = court.opponentDefaultPosition();
+    const pos = court.servePosition('opponent', 'ad');
+    expect(pos.y).toBeCloseTo(center.y);
+    expect(pos.x).toBeLessThan(center.x);
+  });
+
+  test('serve positions stay on their respective court halves', () => {
+    const playerDeuce = court.servePosition('player', 'deuce');
+    expect(court.isOnPlayerSide(playerDeuce.x, playerDeuce.y)).toBe(true);
+
+    const playerAd = court.servePosition('player', 'ad');
+    expect(court.isOnPlayerSide(playerAd.x, playerAd.y)).toBe(true);
+
+    const opponentDeuce = court.servePosition('opponent', 'deuce');
+    expect(court.isOnOpponentSide(opponentDeuce.x, opponentDeuce.y)).toBe(true);
+
+    const opponentAd = court.servePosition('opponent', 'ad');
+    expect(court.isOnOpponentSide(opponentAd.x, opponentAd.y)).toBe(true);
+  });
 });

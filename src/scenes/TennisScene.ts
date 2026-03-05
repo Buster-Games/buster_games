@@ -10,11 +10,10 @@ import {
   resolveCourtPoints,
   preloadLaraSprites,
   createLaraAnimations,
+  preloadCharacterSprites,
+  createCharacterAnimations,
   type Direction,
 } from '../game/tennis';
-
-/** Set to true to draw the court geometry overlay for coordinate calibration. */
-const DEBUG_COURT = true;
 
 /**
  * Game state for the tennis match.
@@ -43,17 +42,32 @@ export class TennisScene extends Phaser.Scene {
   private gameState: GameState = 'serving';
   private servingPlayer: 'player' | 'opponent' = 'player';
   private rallyCount = 0;
+  // Points played in the current game — drives deuce/ad court selection (even → deuce, odd → ad).
+  private pointsPlayedInGame = 0;
 
   // Timing mechanic
   private hitWindow = false;
   private hitWindowTimer: Phaser.Time.TimerEvent | null = null;
+  private hitWindowEnableTimer: Phaser.Time.TimerEvent | null = null;
   private hitIndicator!: Phaser.GameObjects.Arc;
+
+  // Delayed-call guards — prevent stale ball.hit() / opponent callbacks
+  private pendingBallHit: Phaser.Time.TimerEvent | null = null;
+  private pendingOpponentHit: Phaser.Time.TimerEvent | null = null;
+
+  // Match-end overlay (tracked so it can be torn down on restart)
+  private matchEndObjects: Phaser.GameObjects.GameObject[] = [];
 
   // Court geometry (perspective-correct trapezoid model)
   private courtGeometry!: CourtGeometry;
 
   // Which court to use (can be set via scene data)
   private courtId: string = DEFAULT_COURT_ID;
+
+  // Opponent configuration (set via scene data from QuickMatchScene)
+  private opponentKey = 'nic';
+  private opponentName = 'OPPONENT';
+  private setsToWin = 2;
 
   // Track who hit the ball last (for correct out-of-bounds attribution)
   private lastHitter: 'player' | 'opponent' = 'player';
@@ -66,10 +80,19 @@ export class TennisScene extends Phaser.Scene {
   }
 
   preload(): void {
-    // Accept court ID from scene data (e.g. this.scene.start('TennisScene', { courtId: 'grass-somerset' }))
+    // Accept config from scene data (e.g. this.scene.start('TennisScene', { courtId, opponentKey, ... }))
     const data = this.scene.settings.data as Record<string, unknown> | undefined;
     if (data?.courtId && typeof data.courtId === 'string' && COURTS[data.courtId]) {
       this.courtId = data.courtId;
+    }
+    if (data?.opponentKey && typeof data.opponentKey === 'string') {
+      this.opponentKey = data.opponentKey;
+    }
+    if (data?.opponentName && typeof data.opponentName === 'string') {
+      this.opponentName = data.opponentName;
+    }
+    if (data?.setsToWin && typeof data.setsToWin === 'number') {
+      this.setsToWin = data.setsToWin;
     }
 
     const courtDef = COURTS[this.courtId];
@@ -82,6 +105,9 @@ export class TennisScene extends Phaser.Scene {
 
     // Load all Lara sprites and animations
     preloadLaraSprites(this);
+
+    // Load opponent sprites
+    preloadCharacterSprites(this, this.opponentKey);
   }
 
   create(): void {
@@ -114,6 +140,7 @@ export class TennisScene extends Phaser.Scene {
 
     // ── Create animations ────────────────────────────────────
     createLaraAnimations(this);
+    createCharacterAnimations(this, this.opponentKey);
 
     // ── Player (Lara) ────────────────────────────────────────
     const playerStart = this.courtGeometry.playerDefaultPosition();
@@ -126,6 +153,7 @@ export class TennisScene extends Phaser.Scene {
     });
     this.player.perspectiveScale = this.perspectiveScale;
     this.player.clampPosition = (x, y) => this.courtGeometry.clampToPlayerSide(x, y);
+    this.player.sizeMultiplier = 1.5;
     this.player.setScale(this.perspectiveScale(playerStart.y));
 
     // ── Opponent ─────────────────────────────────────────────
@@ -135,12 +163,12 @@ export class TennisScene extends Phaser.Scene {
       scene: this,
       x: opponentStart.x,
       y: opponentStart.y,
-      spriteKey: 'lara',
+      spriteKey: this.opponentKey,
       isOpponent: true,
-      tint: 0xff8888,
     });
     this.opponent.perspectiveScale = this.perspectiveScale;
     this.opponent.clampPosition = (x, y) => this.courtGeometry.clampToOpponentSide(x, y);
+    this.opponent.sizeMultiplier = 2.5;
     this.opponent.setScale(this.perspectiveScale(opponentStart.y));
 
     // ── Ball ─────────────────────────────────────────────────
@@ -166,20 +194,24 @@ export class TennisScene extends Phaser.Scene {
       scene: this,
       width,
       playerName: 'LARA',
-      opponentName: 'OPPONENT',
+      opponentName: this.opponentName,
       gamesPerSet: 3,
+      setsToWin: this.setsToWin,
     });
 
     // Score callbacks
     this.scoreboard.onGameWon = (_winner) => {
       // Alternate server between games (traditional tennis rules)
       this.servingPlayer = this.servingPlayer === 'player' ? 'opponent' : 'player';
+      // Each new game restarts from the deuce court (right side)
+      this.pointsPlayedInGame = 0;
     };
 
     // Server also alternates when a set ends (the game that closed the set
     // doesn't fire onGameWon, so we handle it here too)
     this.scoreboard.onSetWon = (_winner) => {
       this.servingPlayer = this.servingPlayer === 'player' ? 'opponent' : 'player';
+      this.pointsPlayedInGame = 0;
     };
 
     this.scoreboard.onMatchWon = (winner) => {
@@ -206,16 +238,12 @@ export class TennisScene extends Phaser.Scene {
       .setDepth(300);
 
     backBtn.on('pointerdown', () => {
-      this.scene.start('HomeScene');
+      this.scene.start('GameModeScene');
     });
 
     // ── Start serving ────────────────────────────────────────
     this._startServe();
 
-    // ── Debug overlay ────────────────────────────────────────
-    if (DEBUG_COURT) {
-      this._drawDebugOverlay();
-    }
   }
 
   update(_time: number, delta: number): void {
@@ -247,8 +275,10 @@ export class TennisScene extends Phaser.Scene {
         break;
 
       case 'game-over':
-        // Restart match — player serves first
+        // Restart match — player serves first from deuce court
+        this._destroyMatchEndOverlay();
         this.servingPlayer = 'player';
+        this.pointsPlayedInGame = 0;
         this.scoreboard.resetMatch();
         this._startServe();
         break;
@@ -263,13 +293,19 @@ export class TennisScene extends Phaser.Scene {
     this.rallyCount = 0;
     this.lastHitter = this.servingPlayer;
 
+    // ── Clean up ALL rally state ─────────────────────────────
+    this._cancelHitWindow();
+    this._cancelPendingTimers();
+    this.ball.stop(); // cancel any in-flight ball tween
+
     // Clear any in-flight movement and reset to idle
     this.player.stop();
     this.opponent.stop();
 
-    // Reset positions to default spots
-    const playerPos = this.courtGeometry.playerDefaultPosition();
-    const opponentPos = this.courtGeometry.opponentDefaultPosition();
+    // Position players on the correct service court side (deuce = right, ad = left)
+    const serveSide = this._getServeSide();
+    const playerPos = this.courtGeometry.servePosition('player', serveSide);
+    const opponentPos = this.courtGeometry.servePosition('opponent', serveSide);
     this.player.setPosition(playerPos.x, playerPos.y);
     this.opponent.setPosition(opponentPos.x, opponentPos.y);
 
@@ -347,6 +383,9 @@ export class TennisScene extends Phaser.Scene {
    * Start the hit timing window for player.
    */
   private _startHitWindow(ballX: number, ballY: number): void {
+    // Cancel any leftover hit window from a previous rally tick
+    this._cancelHitWindow();
+
     // Show hit indicator at ball location
     this.hitIndicator.setPosition(ballX, ballY);
     this.hitIndicator.setVisible(true);
@@ -363,13 +402,17 @@ export class TennisScene extends Phaser.Scene {
     });
 
     // Open hit window after delay (gives player time to see it coming)
-    this.time.delayedCall(200, () => {
+    this.hitWindowEnableTimer = this.time.delayedCall(200, () => {
+      this.hitWindowEnableTimer = null;
+      if (this.gameState !== 'rally') return; // guard stale fire
       this.hitWindow = true;
       this.hitIndicator.setFillStyle(PALETTE.green, 0.5);
     });
 
     // Close hit window after timing period
     this.hitWindowTimer = this.time.delayedCall(800, () => {
+      this.hitWindowTimer = null;
+      if (this.gameState !== 'rally') return; // guard stale fire
       this._missHit();
     });
   }
@@ -380,13 +423,7 @@ export class TennisScene extends Phaser.Scene {
   private _playerHit(): void {
     if (!this.hitWindow) return;
 
-    this.hitWindow = false;
-    this.hitIndicator.setVisible(false);
-
-    if (this.hitWindowTimer) {
-      this.hitWindowTimer.destroy();
-      this.hitWindowTimer = null;
-    }
+    this._cancelHitWindow();
 
     // Calculate return shot into the opponent's half
     const target = this.courtGeometry.randomPointInHalf('opponent', 15);
@@ -395,8 +432,11 @@ export class TennisScene extends Phaser.Scene {
     // Play swing animation based on which side the ball is going
     this.player.swing(target.x >= this.player.x ? 'north-east' : 'north-west');
 
-    // Small delay before ball leaves
-    this.time.delayedCall(150, () => {
+    // Small delay before ball leaves (guarded)
+    this._cancelPendingTimers();
+    this.pendingBallHit = this.time.delayedCall(150, () => {
+      this.pendingBallHit = null;
+      if (this.gameState !== 'rally') return;
       this.ball.hit(target.x, target.y);
       this.rallyCount++;
     });
@@ -421,7 +461,14 @@ export class TennisScene extends Phaser.Scene {
     // Delay for opponent to "reach" the ball
     const reachDelay = 400 + Math.random() * 200;
 
-    this.time.delayedCall(reachDelay, () => {
+    // Cancel any previous pending opponent timer (defensive)
+    if (this.pendingOpponentHit) {
+      this.pendingOpponentHit.destroy();
+      this.pendingOpponentHit = null;
+    }
+
+    this.pendingOpponentHit = this.time.delayedCall(reachDelay, () => {
+      this.pendingOpponentHit = null;
       if (this.gameState !== 'rally') return;
 
       // Check if opponent can reach (simple probability based on distance)
@@ -438,9 +485,15 @@ export class TennisScene extends Phaser.Scene {
       const target = this.courtGeometry.randomPointInHalf('player', 15);
       this.lastHitter = 'opponent';
 
-      this.opponent.swing(target.x >= this.opponent.x ? 'east' : 'west');
+      this.opponent.swing(target.x >= this.opponent.x ? 'south-east' : 'south-west');
 
-      this.time.delayedCall(150, () => {
+      // Guarded delayed ball hit
+      if (this.pendingBallHit) {
+        this.pendingBallHit.destroy();
+      }
+      this.pendingBallHit = this.time.delayedCall(150, () => {
+        this.pendingBallHit = null;
+        if (this.gameState !== 'rally') return;
         this.ball.hit(target.x, target.y);
         this.rallyCount++;
       });
@@ -451,7 +504,19 @@ export class TennisScene extends Phaser.Scene {
    * Score a point.
    */
   private _scorePoint(winner: 'player' | 'opponent'): void {
+    // Prevent double-scoring if _scorePoint is called while already over
+    if (this.gameState === 'point-over' || this.gameState === 'game-over') return;
+
     this.gameState = 'point-over';
+
+    // ── Clean up all in-flight rally state ────────────────────
+    this._cancelHitWindow();
+    this._cancelPendingTimers();
+    this.ball.stop();
+
+    // Track points within the current game to drive deuce/ad court alternation
+    this.pointsPlayedInGame++;
+
     this.scoreboard.scorePoint(winner);
     // Server stays the same for the whole game; rotation happens in onGameWon / onSetWon.
 
@@ -489,11 +554,15 @@ export class TennisScene extends Phaser.Scene {
   private _showMatchEnd(winner: 'player' | 'opponent'): void {
     const { width, height } = this.scale;
 
+    // Destroy any previous match-end overlay (defensive)
+    this._destroyMatchEndOverlay();
+
     // Overlay
     const overlay = this.add.graphics();
     overlay.fillStyle(PALETTE.nearBlack, 0.7);
     overlay.fillRect(0, 0, width, height);
     overlay.setDepth(400);
+    this.matchEndObjects.push(overlay);
 
     // Result text
     const resultText =
@@ -501,7 +570,7 @@ export class TennisScene extends Phaser.Scene {
     const resultColor =
       winner === 'player' ? PALETTE_HEX.gold : PALETTE_HEX.pink;
 
-    this.add
+    const resultLabel = this.add
       .text(width / 2, height / 2 - 40, resultText, {
         fontFamily: FONT,
         fontSize: '28px',
@@ -509,8 +578,9 @@ export class TennisScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(500);
+    this.matchEndObjects.push(resultLabel);
 
-    this.add
+    const tapLabel = this.add
       .text(width / 2, height / 2 + 20, 'TAP TO PLAY AGAIN', {
         fontFamily: FONT,
         fontSize: '12px',
@@ -518,99 +588,16 @@ export class TennisScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(500);
+    this.matchEndObjects.push(tapLabel);
   }
 
   /**
-   * Draw a semi-transparent overlay showing the court geometry for calibration.
-   * Enable by setting DEBUG_COURT = true at the top of this file.
+   * Returns the service court side for the current point.
+   * Even points within a game → deuce court (right); odd → ad court (left).
+   * This resets to 'deuce' at the start of every new game.
    */
-  private _drawDebugOverlay(): void {
-    const g = this.add.graphics();
-    g.setDepth(999);
-    const p = this.courtGeometry.points;
-    const courtDef = COURTS[this.courtId];
-
-    // Court name label (top-left below back button)
-    this.add
-      .text(20, 108, `COURT: ${courtDef.name}`, {
-        fontFamily: FONT,
-        fontSize: '8px',
-        color: '#00ff00',
-        backgroundColor: '#000000',
-        padding: { x: 4, y: 2 },
-      })
-      .setDepth(999);
-
-    // Draw outer court trapezoid (white)
-    g.lineStyle(2, 0xffffff, 0.8);
-    g.beginPath();
-    g.moveTo(p.farLeft.x, p.farLeft.y);
-    g.lineTo(p.farRight.x, p.farRight.y);
-    g.lineTo(p.nearRight.x, p.nearRight.y);
-    g.lineTo(p.nearLeft.x, p.nearLeft.y);
-    g.closePath();
-    g.strokePath();
-
-    // Draw net zone (red band)
-    g.lineStyle(2, 0xff0000, 0.8);
-    g.beginPath();
-    g.moveTo(p.netFarLeft.x, p.netFarLeft.y);
-    g.lineTo(p.netFarRight.x, p.netFarRight.y);
-    g.strokePath();
-    g.beginPath();
-    g.moveTo(p.netNearLeft.x, p.netNearLeft.y);
-    g.lineTo(p.netNearRight.x, p.netNearRight.y);
-    g.strokePath();
-
-    // Fill net zone semi-transparent red
-    g.fillStyle(0xff0000, 0.15);
-    g.beginPath();
-    g.moveTo(p.netFarLeft.x, p.netFarLeft.y);
-    g.lineTo(p.netFarRight.x, p.netFarRight.y);
-    g.lineTo(p.netNearRight.x, p.netNearRight.y);
-    g.lineTo(p.netNearLeft.x, p.netNearLeft.y);
-    g.closePath();
-    g.fillPath();
-
-    // Draw sidelines (yellow)
-    g.lineStyle(1, 0xffff00, 0.5);
-    g.beginPath();
-    g.moveTo(p.farLeft.x, p.farLeft.y);
-    g.lineTo(p.nearLeft.x, p.nearLeft.y);
-    g.strokePath();
-    g.beginPath();
-    g.moveTo(p.farRight.x, p.farRight.y);
-    g.lineTo(p.nearRight.x, p.nearRight.y);
-    g.strokePath();
-
-    // Draw dots at each key point with labels
-    const pointEntries: [string, { x: number; y: number }][] = [
-      ['farL', p.farLeft],
-      ['farR', p.farRight],
-      ['netFL', p.netFarLeft],
-      ['netFR', p.netFarRight],
-      ['netNL', p.netNearLeft],
-      ['netNR', p.netNearRight],
-      ['nearL', p.nearLeft],
-      ['nearR', p.nearRight],
-    ];
-
-    for (const [label, pt] of pointEntries) {
-      g.fillStyle(0x00ff00, 1);
-      g.fillCircle(pt.x, pt.y, 4);
-      this.add
-        .text(pt.x + 6, pt.y - 8, `${label}\n${Math.round(pt.x)},${Math.round(pt.y)}`, {
-          fontFamily: FONT,
-          fontSize: '7px',
-          color: '#00ff00',
-        })
-        .setDepth(999);
-    }
-
-    // Log tap coordinates to console for calibration
-    this.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      console.log(`[DEBUG_COURT] tap at (${Math.round(pointer.x)}, ${Math.round(pointer.y)})`);
-    });
+  private _getServeSide(): 'deuce' | 'ad' {
+    return this.pointsPlayedInGame % 2 === 0 ? 'deuce' : 'ad';
   }
 
   /**
@@ -618,5 +605,54 @@ export class TennisScene extends Phaser.Scene {
    */
   private _randomInRange(min: number, max: number): number {
     return min + Math.random() * (max - min);
+  }
+
+  // ── State cleanup helpers ──────────────────────────────────
+
+  /**
+   * Cancel all hit-window state: timers, flag, indicator.
+   */
+  private _cancelHitWindow(): void {
+    this.hitWindow = false;
+    this.hitIndicator?.setVisible(false);
+
+    // Kill any in-progress contract tween on the indicator so they don't
+    // accumulate across rallies and fight each other on the same target.
+    if (this.hitIndicator) {
+      this.tweens.killTweensOf(this.hitIndicator);
+    }
+
+    if (this.hitWindowTimer) {
+      this.hitWindowTimer.destroy();
+      this.hitWindowTimer = null;
+    }
+    if (this.hitWindowEnableTimer) {
+      this.hitWindowEnableTimer.destroy();
+      this.hitWindowEnableTimer = null;
+    }
+  }
+
+  /**
+   * Cancel any pending delayed calls for ball hits or opponent actions.
+   */
+  private _cancelPendingTimers(): void {
+    if (this.pendingBallHit) {
+      this.pendingBallHit.destroy();
+      this.pendingBallHit = null;
+    }
+    if (this.pendingOpponentHit) {
+      this.pendingOpponentHit.destroy();
+      this.pendingOpponentHit = null;
+    }
+  }
+
+  /**
+   * Destroy the match-end overlay graphics and labels.
+   */
+  private _destroyMatchEndOverlay(): void {
+    for (const obj of this.matchEndObjects) {
+      obj.destroy();
+    }
+    this.matchEndObjects = [];
   }
 }

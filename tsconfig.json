@@ -8,7 +8,7 @@
     "skipLibCheck": true,
     "lib": ["ES2020", "DOM"],
     "baseUrl": ".",
-    "types": ["vitest/globals"]
+    "types": ["vitest/globals", "vite/client", "node"]
   },
   "include": ["src/**/*", "vite.config.ts"],
   "exclude": ["node_modules", "dist"]

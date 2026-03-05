@@ -57,6 +57,9 @@ export class Player {
   // Perspective scaling function (set by TennisScene)
   public perspectiveScale: ((y: number) => number) | null = null;
 
+  // Size multiplier applied on top of perspective scale (1.0 = default)
+  public sizeMultiplier = 0.8;
+
   // Court bounds (set by TennisScene) — rectangular fallback
   public courtBounds: CourtBounds | null = null;
 
@@ -108,7 +111,7 @@ export class Player {
    * Set the player's scale.
    */
   setScale(scale: number): void {
-    this.sprite.setScale(scale);
+    this.sprite.setScale(scale * this.sizeMultiplier);
   }
 
   /**
@@ -193,18 +196,25 @@ export class Player {
 
   /**
    * Map any 8-direction to the nearest available swing direction.
-   * Available: east, west, north-east, north-west.
+   * If the character has all 8 swing directions (opponents), the direction
+   * is returned as-is. Otherwise falls back to the 4-direction Lara set:
+   * east, west, north-east, north-west.
    */
   private _mapToSwingDirection(dir: Direction): Direction {
+    // Check if exact direction animation exists (opponents have all 8)
+    const exactKey = `${this.spriteKey}-swing-${dir}`;
+    if (this.scene.anims.exists(exactKey)) {
+      return dir;
+    }
+
+    // Fallback mapping for characters with only 4 swing directions
     switch (dir) {
       case 'north-east': return 'north-east';
       case 'north-west': return 'north-west';
       case 'east':       return 'east';
       case 'west':       return 'west';
-      // Map south-facing directions to east/west based on lateral component
       case 'south-east': return 'east';
       case 'south-west': return 'west';
-      // Pure north/south — default to whichever side feels natural
       case 'north':      return 'north-east';
       case 'south':      return 'east';
     }
@@ -310,7 +320,7 @@ export class Player {
    */
   private _updateScale(): void {
     if (this.perspectiveScale) {
-      this.sprite.setScale(this.perspectiveScale(this._y));
+      this.sprite.setScale(this.perspectiveScale(this._y) * this.sizeMultiplier);
     }
   }
 

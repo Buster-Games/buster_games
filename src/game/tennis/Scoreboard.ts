@@ -13,6 +13,7 @@ export interface ScoreboardConfig {
   playerName?: string;
   opponentName?: string;
   gamesPerSet?: number; // Default: 3 for quick games
+  setsToWin?: number;   // Default: 2 (best of 3). Set to 1 for a single-set match.
 }
 
 /**
@@ -33,6 +34,7 @@ export class Scoreboard {
   private opponentSets = 0;
   private currentSet = 1;
   private gamesPerSet: number;
+  private setsToWin: number;
 
   // Deuce tracking
   private isDeuce = false;
@@ -54,6 +56,7 @@ export class Scoreboard {
   constructor(config: ScoreboardConfig) {
     this.scene = config.scene;
     this.gamesPerSet = config.gamesPerSet ?? 3;
+    this.setsToWin = config.setsToWin ?? 2;
 
     // Create container for all scoreboard elements
     this.container = this.scene.add.container(0, 50);
@@ -192,12 +195,12 @@ export class Scoreboard {
       this.opponentSets++;
     }
 
-    // Check for match win (best of 3 sets)
-    if (this.playerSets >= 2) {
+    // Check for match win (configurable: best of 3 or single set)
+    if (this.playerSets >= this.setsToWin) {
       if (this.onMatchWon) {
         this.onMatchWon('player');
       }
-    } else if (this.opponentSets >= 2) {
+    } else if (this.opponentSets >= this.setsToWin) {
       if (this.onMatchWon) {
         this.onMatchWon('opponent');
       }

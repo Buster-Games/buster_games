@@ -181,6 +181,24 @@ export class CourtGeometry {
     return { x: (left + right) / 2, y };
   }
 
+  /**
+   * Starting position for the server or receiver on the given service court side.
+   * Deuce = right of centre mark; Ad = left of centre mark (viewed from above).
+   * Both the server and receiver stand on the same side of the court each point.
+   */
+  servePosition(half: 'player' | 'opponent', side: 'deuce' | 'ad'): Point {
+    const base =
+      half === 'player'
+        ? this.playerDefaultPosition()
+        : this.opponentDefaultPosition();
+    const { left, right } = this.getXBoundsAtY(base.y);
+    const centerX = (left + right) / 2;
+    const x = side === 'deuce'
+      ? (centerX + right) / 2  // midpoint between centre mark and right sideline
+      : (centerX + left) / 2;  // midpoint between centre mark and left sideline
+    return { x, y: base.y };
+  }
+
   // ── Internal helpers ───────────────────────────────────────
 
   /** Normalized 0-1 position along the full court height. */

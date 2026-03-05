@@ -78,7 +78,7 @@ export class HomeScene extends Phaser.Scene {
       'icon-racquet',
       true,
       () => {
-        this.scene.start('TennisScene');
+        this.scene.start('GameModeScene');
       }
     );
 
