@@ -183,20 +183,33 @@ export class CourtGeometry {
 
   /**
    * Starting position for the server or receiver on the given service court side.
-   * Deuce = right of centre mark; Ad = left of centre mark (viewed from above).
-   * Both the server and receiver stand on the same side of the court each point.
+   *
+   * Each player stands on THEIR OWN right side for deuce, their own left for ad.
+   * The player faces north (up screen), so their right is screen-right.
+   * The opponent faces south (down screen), so their right is screen-left.
+   * This places them diagonally opposite each other every point.
+   *
+   * Both players are positioned at their respective baselines.
    */
   servePosition(half: 'player' | 'opponent', side: 'deuce' | 'ad'): Point {
-    const base =
-      half === 'player'
-        ? this.playerDefaultPosition()
-        : this.opponentDefaultPosition();
-    const { left, right } = this.getXBoundsAtY(base.y);
+    const y = half === 'player' ? this.nearY : this.farY;
+    const { left, right } = this.getXBoundsAtY(y);
     const centerX = (left + right) / 2;
-    const x = side === 'deuce'
-      ? (centerX + right) / 2  // midpoint between centre mark and right sideline
-      : (centerX + left) / 2;  // midpoint between centre mark and left sideline
-    return { x, y: base.y };
+
+    let x: number;
+    if (half === 'player') {
+      // Player faces up — right is screen-right
+      x = side === 'deuce'
+        ? (centerX + right) / 2
+        : (centerX + left) / 2;
+    } else {
+      // Opponent faces down — right is screen-left
+      x = side === 'deuce'
+        ? (centerX + left) / 2
+        : (centerX + right) / 2;
+    }
+
+    return { x, y };
   }
 
   // ── Internal helpers ───────────────────────────────────────

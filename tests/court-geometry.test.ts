@@ -182,32 +182,48 @@ describe('CourtGeometry', () => {
 
   // ── servePosition ─────────────────────────────────────────
 
-  test('deuce serve position is right of centre on player half', () => {
-    const center = court.playerDefaultPosition();
+  test('player deuce position is at near baseline, right of centre', () => {
+    const { left, right } = court.getXBoundsAtY(court.nearY);
+    const centerX = (left + right) / 2;
     const pos = court.servePosition('player', 'deuce');
-    expect(pos.y).toBeCloseTo(center.y);
-    expect(pos.x).toBeGreaterThan(center.x);
+    expect(pos.y).toBe(court.nearY);
+    expect(pos.x).toBeGreaterThan(centerX);
   });
 
-  test('ad serve position is left of centre on player half', () => {
-    const center = court.playerDefaultPosition();
+  test('player ad position is at near baseline, left of centre', () => {
+    const { left, right } = court.getXBoundsAtY(court.nearY);
+    const centerX = (left + right) / 2;
     const pos = court.servePosition('player', 'ad');
-    expect(pos.y).toBeCloseTo(center.y);
-    expect(pos.x).toBeLessThan(center.x);
+    expect(pos.y).toBe(court.nearY);
+    expect(pos.x).toBeLessThan(centerX);
   });
 
-  test('deuce serve position is right of centre on opponent half', () => {
-    const center = court.opponentDefaultPosition();
+  test('opponent deuce position is at far baseline, screen-left (their own right)', () => {
+    const { left, right } = court.getXBoundsAtY(court.farY);
+    const centerX = (left + right) / 2;
     const pos = court.servePosition('opponent', 'deuce');
-    expect(pos.y).toBeCloseTo(center.y);
-    expect(pos.x).toBeGreaterThan(center.x);
+    expect(pos.y).toBe(court.farY);
+    expect(pos.x).toBeLessThan(centerX);
   });
 
-  test('ad serve position is left of centre on opponent half', () => {
-    const center = court.opponentDefaultPosition();
+  test('opponent ad position is at far baseline, screen-right (their own left)', () => {
+    const { left, right } = court.getXBoundsAtY(court.farY);
+    const centerX = (left + right) / 2;
     const pos = court.servePosition('opponent', 'ad');
-    expect(pos.y).toBeCloseTo(center.y);
-    expect(pos.x).toBeLessThan(center.x);
+    expect(pos.y).toBe(court.farY);
+    expect(pos.x).toBeGreaterThan(centerX);
+  });
+
+  test('player deuce and opponent deuce are diagonal (opposite screen sides)', () => {
+    const playerDeuce = court.servePosition('player', 'deuce');
+    const opponentDeuce = court.servePosition('opponent', 'deuce');
+    const playerBounds = court.getXBoundsAtY(court.nearY);
+    const opponentBounds = court.getXBoundsAtY(court.farY);
+    const playerCenter = (playerBounds.left + playerBounds.right) / 2;
+    const opponentCenter = (opponentBounds.left + opponentBounds.right) / 2;
+    // Player is screen-right, opponent is screen-left
+    expect(playerDeuce.x).toBeGreaterThan(playerCenter);
+    expect(opponentDeuce.x).toBeLessThan(opponentCenter);
   });
 
   test('serve positions stay on their respective court halves', () => {
