@@ -41,11 +41,9 @@ def get_pr_diff() -> str:
     if cached.exists() and cached.stat().st_size > 0:
         return cached.read_text(encoding="utf-8", errors="replace")
 
-    url = f"{API}/repos/{_repo()}/pulls/{_pr()}"
-    headers = {
-        "Authorization": f"Bearer {os.environ['GITHUB_TOKEN']}",
-        "Accept": "application/vnd.github.diff",
-    }
+    # Use the dedicated diff endpoint (more reliable than content-negotiating /pulls/{n})
+    url = f"{API}/repos/{_repo()}/pulls/{_pr()}.diff"
+    headers = github_headers()
     resp = requests.get(url, headers=headers, timeout=60)
     resp.raise_for_status()
     return resp.text
