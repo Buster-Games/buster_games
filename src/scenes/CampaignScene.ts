@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
 import { CampaignManager } from '../game/campaign/CampaignManager';
 import { COURTS } from '../game/tennis/courts';
+import { MusicManager } from '../game/MusicManager';
 import type { CutsceneStep, MatchStep } from '../game/campaign/campaignData';
 import type { CutsceneConfig } from './CutsceneScene';
 
@@ -98,6 +99,9 @@ export class CampaignScene extends Phaser.Scene {
   }
 
   private _playCutscene(step: CutsceneStep): void {
+    // Set the right music for this step (duck happens in CutsceneScene)
+    MusicManager.playForStep(step.id, this);
+
     // Advance past the cutscene before we leave — the cutscene's nextScene
     // will bring us back, where we'll play the step after this one.
     this.mgr.advance();
@@ -118,13 +122,16 @@ export class CampaignScene extends Phaser.Scene {
   }
 
   private _playMatch(step: MatchStep): void {
+    // Set the right music for this match (unduck happens in TennisScene)
+    MusicManager.playForStep(step.id, this);
+
     const isDoubles = !!(step.opponent2Key && step.opponent2Name);
 
     this.scene.start('TennisScene', {
       courtId: step.courtId,
       opponentKey: step.opponentKey,
       opponentName: step.opponentName,
-      setsToWin: step.setsToWin ?? 2,
+      gamesToWin: step.gamesToWin ?? 1,
       difficulty: step.difficulty ?? 'medium',
       isDoubles,
       opponent2Key: step.opponent2Key ?? '',
@@ -135,6 +142,7 @@ export class CampaignScene extends Phaser.Scene {
   }
 
   private _showComplete(): void {
+    MusicManager.play('menu', this);
     const { width, height } = this.scale;
 
     const bg = this.add.graphics();

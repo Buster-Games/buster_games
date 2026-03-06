@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
 import { COURTS } from '../game/tennis';
+import { MusicManager } from '../game/MusicManager';
 
 /**
  * GameModeScene — Shown after selecting "Love at First Serve".
@@ -27,6 +28,7 @@ export class GameModeScene extends Phaser.Scene {
   }
 
   create(): void {
+    MusicManager.play('menu', this);
     const { width, height } = this.scale;
     this.courtIds = Object.keys(COURTS);
 

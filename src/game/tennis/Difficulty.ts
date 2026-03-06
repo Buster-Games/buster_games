@@ -26,7 +26,7 @@ export const MAX_OPPONENT_HITS = 10;
  * The spread controls how wide the curve is (higher = flatter / more variance).
  */
 const DIFFICULTY_PARAMS: Record<DifficultyLevel, { peak: number; spread: number }> = {
-  easy:   { peak: 0.15, spread: 0.22 },
+  easy:   { peak: 0.2, spread: 0.2 },
   medium: { peak: 0.35, spread: 0.25 },
   hard:   { peak: 0.75, spread: 0.25 },
 };

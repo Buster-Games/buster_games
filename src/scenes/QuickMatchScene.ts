@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
 import { COURTS } from '../game/tennis';
+import { MusicManager } from '../game/MusicManager';
 import _characters from 'virtual:characters';
 
 /**
@@ -105,6 +106,8 @@ export class QuickMatchScene extends Phaser.Scene {
   }
 
   create(): void {
+    MusicManager.playRandom(this);
+
     const { width, height } = this.scale;
     this.courtIds = Object.keys(COURTS);
     this.playerSprite = null;
@@ -325,7 +328,7 @@ export class QuickMatchScene extends Phaser.Scene {
 
   private _currentSetsLabel(): string {
     const sets = SET_OPTIONS[this.selectedSetsIdx];
-    return sets === 1 ? '1 SET' : `BEST OF ${sets}`;
+    return sets === 1 ? '1 GAME' : `BEST OF ${sets}`;
   }
 
   private _prevCourt(): void {
@@ -789,7 +792,7 @@ export class QuickMatchScene extends Phaser.Scene {
         courtId,
         opponentKey: opponent.spriteKey,
         opponentName: opponent.name,
-        setsToWin: sets === 1 ? 1 : 2,
+        gamesToWin: sets === 1 ? 1 : 2,
         isDoubles,
         difficulty: DIFFICULTY_OPTIONS[this.selectedDifficultyIdx].toLowerCase(),
       };

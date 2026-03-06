@@ -4,6 +4,10 @@ import { PALETTE, PALETTE_HEX, FONT } from '../../constants';
 /**
  * Tennis scoring: 0, 15, 30, 40, then game.
  * Deuce/Advantage rules apply at 40-40.
+ *
+ * A match is won by the first player to reach `gamesToWin` games.
+ * For a single-game match (gamesToWin=1), one game of 15/30/40/deuce decides it.
+ * For best-of-3 (gamesToWin=2), the first to 2 games wins.
  */
 const POINT_LABELS = ['0', '15', '30', '40'] as const;
 
@@ -12,15 +16,14 @@ export interface ScoreboardConfig {
   width: number;
   playerName?: string;
   opponentName?: string;
-  gamesPerSet?: number; // Default: 3 for quick games
-  setsToWin?: number;   // Default: 2 (best of 3). Set to 1 for a single-set match.
+  gamesToWin?: number; // Default: 1 (single game). Set to 2 for best-of-3.
 }
 
 /**
  * Scoreboard — Tennis score tracking and display.
  *
- * Handles points, games, sets with proper tennis rules including
- * deuce, advantage, and tiebreaks.
+ * Handles points and games with proper tennis rules including
+ * deuce and advantage.
  */
 export class Scoreboard {
   private scene: Phaser.Scene;
@@ -30,11 +33,7 @@ export class Scoreboard {
   private opponentPoints = 0;
   private playerGames = 0;
   private opponentGames = 0;
-  private playerSets = 0;
-  private opponentSets = 0;
-  private currentSet = 1;
-  private gamesPerSet: number;
-  private setsToWin: number;
+  private gamesToWin: number;
 
   // Deuce tracking
   private isDeuce = false;
@@ -44,19 +43,16 @@ export class Scoreboard {
   private container: Phaser.GameObjects.Container;
   private pointsText!: Phaser.GameObjects.Text;
   private gamesText!: Phaser.GameObjects.Text;
-  private setInfoText!: Phaser.GameObjects.Text;
   private playerNameText!: Phaser.GameObjects.Text;
   private opponentNameText!: Phaser.GameObjects.Text;
 
   // Callbacks
   public onGameWon: ((winner: 'player' | 'opponent') => void) | null = null;
-  public onSetWon: ((winner: 'player' | 'opponent') => void) | null = null;
   public onMatchWon: ((winner: 'player' | 'opponent') => void) | null = null;
 
   constructor(config: ScoreboardConfig) {
     this.scene = config.scene;
-    this.gamesPerSet = config.gamesPerSet ?? 3;
-    this.setsToWin = config.setsToWin ?? 2;
+    this.gamesToWin = config.gamesToWin ?? 1;
 
     // Create container for all scoreboard elements
     this.container = this.scene.add.container(0, 50);
@@ -79,7 +75,7 @@ export class Scoreboard {
   }
 
   /**
-   * Reset for a new game.
+   * Reset for a new game (points only).
    */
   resetGame(): void {
     this.playerPoints = 0;
@@ -90,23 +86,12 @@ export class Scoreboard {
   }
 
   /**
-   * Reset for a new set.
-   */
-  resetSet(): void {
-    this.resetGame();
-    this.playerGames = 0;
-    this.opponentGames = 0;
-    this._updateDisplay();
-  }
-
-  /**
    * Reset everything for a new match.
    */
   resetMatch(): void {
-    this.resetSet();
-    this.playerSets = 0;
-    this.opponentSets = 0;
-    this.currentSet = 1;
+    this.resetGame();
+    this.playerGames = 0;
+    this.opponentGames = 0;
     this._updateDisplay();
   }
 
@@ -118,16 +103,12 @@ export class Scoreboard {
     opponentPoints: number;
     playerGames: number;
     opponentGames: number;
-    playerSets: number;
-    opponentSets: number;
   } {
     return {
       playerPoints: this.playerPoints,
       opponentPoints: this.opponentPoints,
       playerGames: this.playerGames,
       opponentGames: this.opponentGames,
-      playerSets: this.playerSets,
-      opponentSets: this.opponentSets,
     };
   }
 
@@ -172,45 +153,21 @@ export class Scoreboard {
       this.opponentGames++;
     }
 
-    // Check for set win
-    const winnerGames = winner === 'player' ? this.playerGames : this.opponentGames;
-    const loserGames = winner === 'player' ? this.opponentGames : this.playerGames;
-
-    if (winnerGames >= this.gamesPerSet && winnerGames - loserGames >= 2) {
-      this._winSet(winner);
+    // Check for match win
+    if (this.playerGames >= this.gamesToWin) {
+      if (this.onMatchWon) {
+        this.onMatchWon('player');
+      }
+    } else if (this.opponentGames >= this.gamesToWin) {
+      if (this.onMatchWon) {
+        this.onMatchWon('opponent');
+      }
     } else {
       // Reset for next game
       this.resetGame();
 
       if (this.onGameWon) {
         this.onGameWon(winner);
-      }
-    }
-  }
-
-  private _winSet(winner: 'player' | 'opponent'): void {
-    if (winner === 'player') {
-      this.playerSets++;
-    } else {
-      this.opponentSets++;
-    }
-
-    // Check for match win (configurable: best of 3 or single set)
-    if (this.playerSets >= this.setsToWin) {
-      if (this.onMatchWon) {
-        this.onMatchWon('player');
-      }
-    } else if (this.opponentSets >= this.setsToWin) {
-      if (this.onMatchWon) {
-        this.onMatchWon('opponent');
-      }
-    } else {
-      // Next set
-      this.currentSet++;
-      this.resetSet();
-
-      if (this.onSetWon) {
-        this.onSetWon(winner);
       }
     }
   }
@@ -252,25 +209,15 @@ export class Scoreboard {
       .setOrigin(0.5, 0);
     this.container.add(this.pointsText);
 
-    // Games display (below points)
+    // Games display (below points) — only shown for multi-game matches
     this.gamesText = this.scene.add
-      .text(width / 2, 28, 'GAMES: 0 - 0', {
+      .text(width / 2, 28, '', {
         fontFamily: FONT,
         fontSize: '8px',
         color: PALETTE_HEX.lightGrey,
       })
       .setOrigin(0.5, 0);
     this.container.add(this.gamesText);
-
-    // Set info (far right of games)
-    this.setInfoText = this.scene.add
-      .text(width - 20, 28, 'SET 1', {
-        fontFamily: FONT,
-        fontSize: '8px',
-        color: PALETTE_HEX.lightGrey,
-      })
-      .setOrigin(1, 0);
-    this.container.add(this.setInfoText);
   }
 
   private _updateDisplay(): void {
@@ -279,11 +226,12 @@ export class Scoreboard {
     const opponentPointLabel = this._getPointLabel('opponent');
     this.pointsText.setText(`${playerPointLabel} - ${opponentPointLabel}`);
 
-    // Games display
-    this.gamesText.setText(`GAMES: ${this.playerGames} - ${this.opponentGames}`);
-
-    // Set info
-    this.setInfoText.setText(`SET ${this.currentSet} (${this.playerSets}-${this.opponentSets})`);
+    // Games display — only for multi-game matches
+    if (this.gamesToWin > 1) {
+      this.gamesText.setText(`GAMES: ${this.playerGames} - ${this.opponentGames}`);
+    } else {
+      this.gamesText.setText('');
+    }
   }
 
   private _getPointLabel(who: 'player' | 'opponent'): string {

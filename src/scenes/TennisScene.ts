@@ -15,6 +15,7 @@ import {
   type Direction,
 } from '../game/tennis';
 import { sampleMaxHits, shouldOpponentMiss, type DifficultyLevel } from '../game/tennis/Difficulty';
+import { MusicManager } from '../game/MusicManager';
 
 /**
  * Game state for the tennis match.
@@ -84,7 +85,7 @@ export class TennisScene extends Phaser.Scene {
   // Opponent configuration (set via scene data from QuickMatchScene)
   private opponentKey = 'nic';
   private opponentName = 'OPPONENT';
-  private setsToWin = 2;
+  private gamesToWin = 1;
 
   // Return-to-scene config (campaign / quick match integration)
   private returnScene = 'GameModeScene';
@@ -112,8 +113,8 @@ export class TennisScene extends Phaser.Scene {
     if (data?.opponentName && typeof data.opponentName === 'string') {
       this.opponentName = data.opponentName;
     }
-    if (data?.setsToWin && typeof data.setsToWin === 'number') {
-      this.setsToWin = data.setsToWin;
+    if (data?.gamesToWin && typeof data.gamesToWin === 'number') {
+      this.gamesToWin = data.gamesToWin;
     }
     if (data?.difficulty && typeof data.difficulty === 'string') {
       this.difficulty = data.difficulty as DifficultyLevel;
@@ -158,6 +159,9 @@ export class TennisScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Restore full volume when entering a match
+    MusicManager.unduck(this);
+
     const { width, height } = this.scale;
 
     // ── Court geometry (perspective-correct trapezoid) ────────
@@ -276,8 +280,7 @@ export class TennisScene extends Phaser.Scene {
       width,
       playerName: 'LARA',
       opponentName: oppDisplayName,
-      gamesPerSet: 3,
-      setsToWin: this.setsToWin,
+      gamesToWin: this.gamesToWin,
     });
 
     // Score callbacks
@@ -286,20 +289,12 @@ export class TennisScene extends Phaser.Scene {
       this.servingPlayer = this.servingPlayer === 'player' ? 'opponent' : 'player';
       // Each new game restarts from the deuce court (right side)
       this.pointsPlayedInGame = 0;
-    };
 
-    // Server also alternates when a set ends (the game that closed the set
-    // doesn't fire onGameWon, so we handle it here too)
-    this.scoreboard.onSetWon = (_winner) => {
-      this.servingPlayer = this.servingPlayer === 'player' ? 'opponent' : 'player';
-      this.pointsPlayedInGame = 0;
-
-      // Doubles: swap which half each opponent covers after every set
+      // Doubles: swap which half each opponent covers after every game
       if (this.isDoubles) {
         const tmp = this.opp1Side;
         this.opp1Side = this.opp2Side;
         this.opp2Side = tmp;
-        // Update clamp functions so movement stays in the new half
         this.opponent.clampPosition = (x, y) => this.courtGeometry.clampToOpponentHalf(x, y, this.opp1Side);
         this.opponent2.clampPosition = (x, y) => this.courtGeometry.clampToOpponentHalf(x, y, this.opp2Side);
       }

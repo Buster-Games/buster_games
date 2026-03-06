@@ -22,9 +22,9 @@ const path = require('path');
 const LIMITS = [
   { pattern: /^assets[\\/]sprites[\\/]/,        maxBytes: 200 * 1024,  label: 'sprites (200 KB)' },
   { pattern: /^assets[\\/]items[\\/]/,           maxBytes: 100 * 1024,  label: 'items (100 KB)' },
-  { pattern: /^assets[\\/]backgrounds[\\/]/,     maxBytes: 1024 * 1024, label: 'backgrounds (1 MB)' },
+  { pattern: /^assets[\\/]backgrounds[\\/]/,     maxBytes: 3 * 1024 * 1024, label: 'backgrounds (3 MB)' },
   { pattern: /^assets[\\/]audio[\\/]sfx[\\/]/,   maxBytes: 300 * 1024,  label: 'audio/sfx (300 KB)' },
-  { pattern: /^assets[\\/]audio[\\/]music[\\/]/, maxBytes: 3 * 1024 * 1024, label: 'audio/music (3 MB)' },
+  { pattern: /^assets[\\/]audio[\\/]music[\\/]/, maxBytes: 8 * 1024 * 1024, label: 'audio/music (8 MB)' },
 ];
 const DEFAULT_MAX_BYTES = 500 * 1024; // 500 KB for anything else in assets/
 

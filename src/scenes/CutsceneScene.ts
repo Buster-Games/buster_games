@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
+import { MusicManager } from '../game/MusicManager';
 
 /**
  * A single dialogue line in a cutscene.
@@ -103,6 +104,9 @@ export class CutsceneScene extends Phaser.Scene {
   }
 
   create(): void {
+    // Duck music during dialogue
+    MusicManager.duck(this);
+
     const { width, height } = this.scale;
 
     // ── Court background (faded) ─────────────────────────────

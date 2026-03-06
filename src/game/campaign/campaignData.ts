@@ -37,8 +37,8 @@ export interface MatchStep {
   /** Doubles partner for opponent side. */
   opponent2Key?: string;
   opponent2Name?: string;
-  /** Sets to win — defaults to 2 (best of 3). */
-  setsToWin?: number;
+  /** Games to win — defaults to 1 (single game). Set to 2 for best-of-3 games. */
+  gamesToWin?: number;
   /** Difficulty level — defaults to 'medium'. */
   difficulty?: DifficultyLevel;
   /**
@@ -112,7 +112,7 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
     courtId: 'acrylic-marketst',
     opponentKey: 'asier',
     opponentName: 'ASIER',
-    setsToWin: 2,
+    gamesToWin: 1,
     difficulty: 'easy',
     onLose: 'retry',
     lossCutscene: {
@@ -194,7 +194,7 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
     opponentName: 'ANN',
     opponent2Key: 'collin',
     opponent2Name: 'COLLIN',
-    setsToWin: 2,
+    gamesToWin: 1,
     difficulty: 'easy',
     onLose: 'retry',
     lossCutscene: {
@@ -247,7 +247,7 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
     opponentName: 'ANDRE',
     opponent2Key: 'rita',
     opponent2Name: 'RITA',
-    setsToWin: 2,
+    gamesToWin: 1,
     difficulty: 'medium',
     onLose: 'retry',
     lossCutscene: {
@@ -293,7 +293,7 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
     courtId: 'acrylic-pavo',
     opponentKey: 'nic',
     opponentName: 'NIC',
-    setsToWin: 1,
+    gamesToWin: 1,
     difficulty: 'medium',
     onLose: 'retry',
     lossCutscene: {
@@ -329,7 +329,7 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
     courtId: 'acrylic-pavo',
     opponentKey: 'nic',
     opponentName: 'NIC',
-    setsToWin: 2,
+    gamesToWin: 2,
     difficulty: 'hard',
     onLose: 'retry',
     lossCutscene: {
@@ -397,7 +397,7 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
     courtId: 'grass-new-farm',
     opponentKey: 'asier',
     opponentName: 'ASIER',
-    setsToWin: 2,
+    gamesToWin: 1,
     difficulty: 'easy',
     onLose: 'retry',
     lossCutscene: {

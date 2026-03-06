@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
+import { MusicManager } from '../game/MusicManager';
 
 /**
  * HomeScene — Main menu / game selection screen.
@@ -19,9 +20,11 @@ export class HomeScene extends Phaser.Scene {
     this.load.image('home-beach', 'backgrounds/home-beach.png');
     this.load.image('icon-racquet', 'items/pink-tennis-racquet.png');
     this.load.image('icon-van', 'items/retro-van-transparrent.png');
+    MusicManager.preload(this);
   }
 
   create(): void {
+    MusicManager.play('menu', this);
     const { width, height } = this.scale;
 
     // ── Background image ─────────────────────────────────────
