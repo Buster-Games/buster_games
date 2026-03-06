@@ -40,29 +40,22 @@ const FADE_MS = 800;
 /**
  * MusicManager — Singleton that survives across Phaser scenes.
  *
- * Usage:
- *   MusicManager.preload(scene);        // in any scene's preload()
- *   MusicManager.play('menu', scene);   // start or crossfade to a track
- *   MusicManager.duck(scene);           // lower volume during cutscenes
- *   MusicManager.unduck(scene);         // restore volume after cutscene
- *   MusicManager.stop(scene);           // fade out and stop
- *
- *   MusicManager.playForStep(stepId, scene);  // campaign helper
+ * Only the menu track is loaded eagerly (in HomeScene's preload).
+ * All other tracks are loaded on-demand when first requested,
+ * keeping the initial load under ~7 MB instead of ~37 MB.
  */
 export class MusicManager {
   private static currentKey: string | null = null;
   private static currentSound: Phaser.Sound.BaseSound | null = null;
-  private static loaded = false;
+  private static menuLoaded = false;
 
-  /** Call once in a preload — safe to call repeatedly. */
+  /** Preload only the menu track — called in HomeScene's preload(). */
   static preload(scene: Phaser.Scene): void {
-    if (MusicManager.loaded) return;
-    for (const [key, path] of Object.entries(TRACKS)) {
-      if (!scene.cache.audio.exists(key)) {
-        scene.load.audio(key, path);
-      }
+    if (MusicManager.menuLoaded) return;
+    if (!scene.cache.audio.exists('menu')) {
+      scene.load.audio('menu', TRACKS['menu']);
     }
-    MusicManager.loaded = true;
+    MusicManager.menuLoaded = true;
   }
 
   /** Start playing a track (or do nothing if it's already playing). */
@@ -76,14 +69,39 @@ export class MusicManager {
     // Already playing this track
     if (MusicManager.currentKey === key && MusicManager.currentSound) return;
 
-    // Stop old track immediately — tweens won't survive scene transitions,
-    // so we must kill the sound synchronously to avoid overlapping audio.
+    const path = TRACKS[key];
+    if (!path) return; // unknown track
+
+    // If the audio isn't cached yet, load it on-demand then play
+    if (!scene.cache.audio.exists(key)) {
+      // Stop old track immediately while we load the new one
+      if (MusicManager.currentSound) {
+        MusicManager.currentSound.stop();
+        MusicManager.currentSound.destroy();
+        MusicManager.currentSound = null;
+      }
+      MusicManager.currentKey = null;
+
+      scene.load.audio(key, path);
+      scene.load.once('complete', () => {
+        MusicManager._startTrack(key, scene);
+      });
+      scene.load.start();
+      return;
+    }
+
+    // Audio is already cached — play immediately
+    // Stop old track first
     if (MusicManager.currentSound) {
       MusicManager.currentSound.stop();
       MusicManager.currentSound.destroy();
     }
 
-    // Start new track with a fade-in
+    MusicManager._startTrack(key, scene);
+  }
+
+  /** Internal: create and fade-in a sound that's already in cache. */
+  private static _startTrack(key: string, scene: Phaser.Scene): void {
     const sound = scene.sound.add(key, { loop: true, volume: 0 });
     sound.play();
     scene.tweens.add({
