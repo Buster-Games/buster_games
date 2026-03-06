@@ -14,6 +14,7 @@ import {
   createCharacterAnimations,
   type Direction,
 } from '../game/tennis';
+import { sampleMaxHits, shouldOpponentMiss, type DifficultyLevel } from '../game/tennis/Difficulty';
 
 /**
  * Game state for the tennis match.
@@ -38,12 +39,27 @@ export class TennisScene extends Phaser.Scene {
   private ball!: Ball;
   private scoreboard!: Scoreboard;
 
+  // Doubles mode
+  private isDoubles = false;
+  private opponent2!: Player;
+  private opponent2Key = '';
+  private opponent2Name = '';
+  /** Which side each opponent covers. Swapped after every set. */
+  private opp1Side: 'left' | 'right' = 'left';
+  private opp2Side: 'left' | 'right' = 'right';
+  private pendingOpponent2Hit: Phaser.Time.TimerEvent | null = null;
+
   // Game state
   private gameState: GameState = 'serving';
   private servingPlayer: 'player' | 'opponent' = 'player';
   private rallyCount = 0;
   // Points played in the current game — drives deuce/ad court selection (even → deuce, odd → ad).
   private pointsPlayedInGame = 0;
+
+  // Difficulty — controls how many shots the opponent can return per point
+  private difficulty: DifficultyLevel = 'medium';
+  private opponentHitCount = 0;
+  private maxHitsThisPoint = 8;
 
   // Timing mechanic
   private hitWindow = false;
@@ -57,6 +73,7 @@ export class TennisScene extends Phaser.Scene {
 
   // Match-end overlay (tracked so it can be torn down on restart)
   private matchEndObjects: Phaser.GameObjects.GameObject[] = [];
+  private _matchWinner: 'player' | 'opponent' = 'player';
 
   // Court geometry (perspective-correct trapezoid model)
   private courtGeometry!: CourtGeometry;
@@ -68,6 +85,10 @@ export class TennisScene extends Phaser.Scene {
   private opponentKey = 'nic';
   private opponentName = 'OPPONENT';
   private setsToWin = 2;
+
+  // Return-to-scene config (campaign / quick match integration)
+  private returnScene = 'GameModeScene';
+  private returnData: Record<string, unknown> = {};
 
   // Track who hit the ball last (for correct out-of-bounds attribution)
   private lastHitter: 'player' | 'opponent' = 'player';
@@ -94,6 +115,27 @@ export class TennisScene extends Phaser.Scene {
     if (data?.setsToWin && typeof data.setsToWin === 'number') {
       this.setsToWin = data.setsToWin;
     }
+    if (data?.difficulty && typeof data.difficulty === 'string') {
+      this.difficulty = data.difficulty as DifficultyLevel;
+    }
+    if (data?.returnScene && typeof data.returnScene === 'string') {
+      this.returnScene = data.returnScene;
+    }
+    if (data?.returnData && typeof data.returnData === 'object') {
+      this.returnData = data.returnData as Record<string, unknown>;
+    }
+    this.isDoubles = data?.isDoubles === true;
+    if (this.isDoubles) {
+      if (data?.opponent2Key && typeof data.opponent2Key === 'string') {
+        this.opponent2Key = data.opponent2Key;
+      }
+      if (data?.opponent2Name && typeof data.opponent2Name === 'string') {
+        this.opponent2Name = data.opponent2Name;
+      }
+      // Reset side assignments
+      this.opp1Side = 'left';
+      this.opp2Side = 'right';
+    }
 
     const courtDef = COURTS[this.courtId];
 
@@ -108,6 +150,11 @@ export class TennisScene extends Phaser.Scene {
 
     // Load opponent sprites
     preloadCharacterSprites(this, this.opponentKey);
+
+    // Load opponent 2 sprites (doubles)
+    if (this.isDoubles && this.opponent2Key) {
+      preloadCharacterSprites(this, this.opponent2Key);
+    }
   }
 
   create(): void {
@@ -141,6 +188,9 @@ export class TennisScene extends Phaser.Scene {
     // ── Create animations ────────────────────────────────────
     createLaraAnimations(this);
     createCharacterAnimations(this, this.opponentKey);
+    if (this.isDoubles && this.opponent2Key) {
+      createCharacterAnimations(this, this.opponent2Key);
+    }
 
     // ── Player (Lara) ────────────────────────────────────────
     const playerStart = this.courtGeometry.playerDefaultPosition();
@@ -156,20 +206,48 @@ export class TennisScene extends Phaser.Scene {
     this.player.sizeMultiplier = 1.5;
     this.player.setScale(this.perspectiveScale(playerStart.y));
 
-    // ── Opponent ─────────────────────────────────────────────
-    const opponentStart = this.courtGeometry.opponentDefaultPosition();
+    // ── Opponent(s) ──────────────────────────────────────────
+    if (this.isDoubles) {
+      // In doubles: each opponent is clamped to their half
+      const opp1Pos = this.courtGeometry.opponentHalfBaselinePosition(this.opp1Side);
+      this.opponent = new Player({
+        scene: this,
+        x: opp1Pos.x,
+        y: opp1Pos.y,
+        spriteKey: this.opponentKey,
+        isOpponent: true,
+      });
+      this.opponent.perspectiveScale = this.perspectiveScale;
+      this.opponent.clampPosition = (x, y) => this.courtGeometry.clampToOpponentHalf(x, y, this.opp1Side);
+      this.opponent.sizeMultiplier = 2.5;
+      this.opponent.setScale(this.perspectiveScale(opp1Pos.y));
 
-    this.opponent = new Player({
-      scene: this,
-      x: opponentStart.x,
-      y: opponentStart.y,
-      spriteKey: this.opponentKey,
-      isOpponent: true,
-    });
-    this.opponent.perspectiveScale = this.perspectiveScale;
-    this.opponent.clampPosition = (x, y) => this.courtGeometry.clampToOpponentSide(x, y);
-    this.opponent.sizeMultiplier = 2.5;
-    this.opponent.setScale(this.perspectiveScale(opponentStart.y));
+      const opp2Pos = this.courtGeometry.opponentHalfBaselinePosition(this.opp2Side);
+      this.opponent2 = new Player({
+        scene: this,
+        x: opp2Pos.x,
+        y: opp2Pos.y,
+        spriteKey: this.opponent2Key,
+        isOpponent: true,
+      });
+      this.opponent2.perspectiveScale = this.perspectiveScale;
+      this.opponent2.clampPosition = (x, y) => this.courtGeometry.clampToOpponentHalf(x, y, this.opp2Side);
+      this.opponent2.sizeMultiplier = 2.5;
+      this.opponent2.setScale(this.perspectiveScale(opp2Pos.y));
+    } else {
+      const opponentStart = this.courtGeometry.opponentDefaultPosition();
+      this.opponent = new Player({
+        scene: this,
+        x: opponentStart.x,
+        y: opponentStart.y,
+        spriteKey: this.opponentKey,
+        isOpponent: true,
+      });
+      this.opponent.perspectiveScale = this.perspectiveScale;
+      this.opponent.clampPosition = (x, y) => this.courtGeometry.clampToOpponentSide(x, y);
+      this.opponent.sizeMultiplier = 2.5;
+      this.opponent.setScale(this.perspectiveScale(opponentStart.y));
+    }
 
     // ── Ball ─────────────────────────────────────────────────
     this.ball = new Ball({
@@ -190,11 +268,14 @@ export class TennisScene extends Phaser.Scene {
     this.hitIndicator.setDepth(10);
 
     // ── Scoreboard ───────────────────────────────────────────
+    const oppDisplayName = this.isDoubles
+      ? `${this.opponentName} & ${this.opponent2Name}`
+      : this.opponentName;
     this.scoreboard = new Scoreboard({
       scene: this,
       width,
       playerName: 'LARA',
-      opponentName: this.opponentName,
+      opponentName: oppDisplayName,
       gamesPerSet: 3,
       setsToWin: this.setsToWin,
     });
@@ -212,10 +293,19 @@ export class TennisScene extends Phaser.Scene {
     this.scoreboard.onSetWon = (_winner) => {
       this.servingPlayer = this.servingPlayer === 'player' ? 'opponent' : 'player';
       this.pointsPlayedInGame = 0;
+
+      // Doubles: swap which half each opponent covers after every set
+      if (this.isDoubles) {
+        const tmp = this.opp1Side;
+        this.opp1Side = this.opp2Side;
+        this.opp2Side = tmp;
+        // Update clamp functions so movement stays in the new half
+        this.opponent.clampPosition = (x, y) => this.courtGeometry.clampToOpponentHalf(x, y, this.opp1Side);
+        this.opponent2.clampPosition = (x, y) => this.courtGeometry.clampToOpponentHalf(x, y, this.opp2Side);
+      }
     };
 
     this.scoreboard.onMatchWon = (winner) => {
-      console.log(`Match won by ${winner}!`);
       this.gameState = 'game-over';
       this._showMatchEnd(winner);
     };
@@ -241,6 +331,32 @@ export class TennisScene extends Phaser.Scene {
       this.scene.start('GameModeScene');
     });
 
+    // ── Debug SKIP button (campaign only) ────────────────────
+    const isCampaign = this.returnScene !== 'GameModeScene';
+    if (isCampaign) {
+      const skipBtn = this.add
+        .text(width - 20, 20, 'SKIP ▶', {
+          fontFamily: FONT,
+          fontSize: '12px',
+          color: PALETTE_HEX.gold,
+          backgroundColor: PALETTE_HEX.nearBlack,
+          padding: { x: 8, y: 4 },
+        })
+        .setOrigin(1, 0)
+        .setInteractive({ useHandCursor: true })
+        .setDepth(300);
+
+      skipBtn.on('pointerdown', () => {
+        if (this.gameState === 'game-over') return;
+        this._cancelHitWindow();
+        this._cancelPendingTimers();
+        this.ball.stop();
+        this.gameState = 'game-over';
+        this._matchWinner = 'player';
+        this._showMatchEnd('player');
+      });
+    }
+
     // ── Start serving ────────────────────────────────────────
     this._startServe();
 
@@ -250,6 +366,9 @@ export class TennisScene extends Phaser.Scene {
     // Update player movements
     this.player.update(delta);
     this.opponent.update(delta);
+    if (this.isDoubles) {
+      this.opponent2.update(delta);
+    }
   }
 
   /**
@@ -275,12 +394,26 @@ export class TennisScene extends Phaser.Scene {
         break;
 
       case 'game-over':
-        // Restart match — player serves first from deuce court
-        this._destroyMatchEndOverlay();
-        this.servingPlayer = 'player';
-        this.pointsPlayedInGame = 0;
-        this.scoreboard.resetMatch();
-        this._startServe();
+        if (this.returnScene !== 'GameModeScene') {
+          // Campaign mode — return result to caller
+          this.scene.start(this.returnScene, {
+            ...this.returnData,
+            matchResult: this._matchWinner,
+          });
+        } else {
+          // Quick match — restart
+          this._destroyMatchEndOverlay();
+          this.servingPlayer = 'player';
+          this.pointsPlayedInGame = 0;
+          if (this.isDoubles) {
+            this.opp1Side = 'left';
+            this.opp2Side = 'right';
+            this.opponent.clampPosition = (x, y) => this.courtGeometry.clampToOpponentHalf(x, y, this.opp1Side);
+            this.opponent2.clampPosition = (x, y) => this.courtGeometry.clampToOpponentHalf(x, y, this.opp2Side);
+          }
+          this.scoreboard.resetMatch();
+          this._startServe();
+        }
         break;
     }
   }
@@ -291,6 +424,8 @@ export class TennisScene extends Phaser.Scene {
   private _startServe(): void {
     this.gameState = 'serving';
     this.rallyCount = 0;
+    this.opponentHitCount = 0;
+    this.maxHitsThisPoint = sampleMaxHits(this.difficulty);
     this.lastHitter = this.servingPlayer;
 
     // ── Clean up ALL rally state ─────────────────────────────
@@ -301,19 +436,53 @@ export class TennisScene extends Phaser.Scene {
     // Clear any in-flight movement and reset to idle
     this.player.stop();
     this.opponent.stop();
+    if (this.isDoubles) {
+      this.opponent2.stop();
+    }
 
     // Position players on the correct service court side (deuce = right, ad = left)
     const serveSide = this._getServeSide();
     const playerPos = this.courtGeometry.servePosition('player', serveSide);
-    const opponentPos = this.courtGeometry.servePosition('opponent', serveSide);
     this.player.setPosition(playerPos.x, playerPos.y);
-    this.opponent.setPosition(opponentPos.x, opponentPos.y);
+
+    if (this.isDoubles) {
+      // Determine which player side Lara is on:
+      // deuce → Lara is on screen-right → diagonal opponent side is screen-left
+      // ad → Lara is on screen-left → diagonal opponent side is screen-right
+      const laraScreenSide: 'left' | 'right' = serveSide === 'deuce' ? 'right' : 'left';
+      const diagonalSide: 'left' | 'right' = laraScreenSide === 'right' ? 'left' : 'right';
+      const sameSide: 'left' | 'right' = laraScreenSide;
+
+      // Place the diagonal opponent at baseline, the other at mid-court
+      const opp1IsDiagonal = this.opp1Side === diagonalSide;
+      const opp1Pos = opp1IsDiagonal
+        ? this.courtGeometry.opponentHalfBaselinePosition(this.opp1Side)
+        : this.courtGeometry.opponentHalfMidPosition(this.opp1Side);
+      const opp2Pos = opp1IsDiagonal
+        ? this.courtGeometry.opponentHalfMidPosition(this.opp2Side)
+        : this.courtGeometry.opponentHalfBaselinePosition(this.opp2Side);
+
+      this.opponent.setPosition(opp1Pos.x, opp1Pos.y);
+      this.opponent2.setPosition(opp2Pos.x, opp2Pos.y);
+    } else {
+      const opponentPos = this.courtGeometry.servePosition('opponent', serveSide);
+      this.opponent.setPosition(opponentPos.x, opponentPos.y);
+    }
 
     // Ball with server
     if (this.servingPlayer === 'player') {
       this.ball.setPosition(this.player.x + 30, this.player.y - 20);
     } else {
-      this.ball.setPosition(this.opponent.x, this.opponent.y + 20);
+      // In doubles, the diagonal-side opponent serves
+      if (this.isDoubles) {
+        const serveSide2 = this._getServeSide();
+        const laraScreenSide: 'left' | 'right' = serveSide2 === 'deuce' ? 'right' : 'left';
+        const diagonalSide: 'left' | 'right' = laraScreenSide === 'right' ? 'left' : 'right';
+        const server = this.opp1Side === diagonalSide ? this.opponent : this.opponent2;
+        this.ball.setPosition(server.x, server.y + 20);
+      } else {
+        this.ball.setPosition(this.opponent.x, this.opponent.y + 20);
+      }
     }
 
     this.ball.setVisible(true);
@@ -336,8 +505,18 @@ export class TennisScene extends Phaser.Scene {
       const target = this.courtGeometry.randomPointInHalf('player', 15);
       this.lastHitter = 'opponent';
 
-      this.ball.hit(target.x, target.y);
-      this.opponent.swing(target.x >= this.opponent.x ? 'east' : 'west');
+      if (this.isDoubles) {
+        // The diagonal opponent serves
+        const serveSide = this._getServeSide();
+        const laraScreenSide: 'left' | 'right' = serveSide === 'deuce' ? 'right' : 'left';
+        const diagonalSide: 'left' | 'right' = laraScreenSide === 'right' ? 'left' : 'right';
+        const server = this.opp1Side === diagonalSide ? this.opponent : this.opponent2;
+        this.ball.hit(target.x, target.y);
+        server.swing(target.x >= server.x ? 'south-east' : 'south-west');
+      } else {
+        this.ball.hit(target.x, target.y);
+        this.opponent.swing(target.x >= this.opponent.x ? 'east' : 'west');
+      }
     }
 
     this.gameState = 'rally';
@@ -365,10 +544,15 @@ export class TennisScene extends Phaser.Scene {
       // Player needs to hit — move toward ball and show hit window
       this.player.moveTo(x, y + 30);
       this._startHitWindow(x, y);
+    } else if (this.isDoubles) {
+      // Doubles: determine which half the ball landed on and route to the right opponent
+      const responsibleOpp = this._getResponsibleOpponent(x, y);
+      responsibleOpp.moveTo(x, y - 10);
+      this._opponentHit(x, y, responsibleOpp);
     } else {
       // Opponent needs to hit — move toward ball (slightly behind, away from net)
       this.opponent.moveTo(x, y - 10);
-      this._opponentHit(x, y);
+      this._opponentHit(x, y, this.opponent);
     }
   }
 
@@ -455,9 +639,19 @@ export class TennisScene extends Phaser.Scene {
   }
 
   /**
+   * In doubles, determine which opponent is responsible for a ball that
+   * landed on the opponent's side, based on left/right half.
+   */
+  private _getResponsibleOpponent(x: number, y: number): Player {
+    const centerX = this.courtGeometry.getCenterXAtY(y);
+    const landedSide: 'left' | 'right' = x < centerX ? 'left' : 'right';
+    return this.opp1Side === landedSide ? this.opponent : this.opponent2;
+  }
+
+  /**
    * Opponent AI hits the ball back.
    */
-  private _opponentHit(ballX: number, ballY: number): void {
+  private _opponentHit(ballX: number, ballY: number, hitter: Player): void {
     // Delay for opponent to "reach" the ball
     const reachDelay = 400 + Math.random() * 200;
 
@@ -466,17 +660,20 @@ export class TennisScene extends Phaser.Scene {
       this.pendingOpponentHit.destroy();
       this.pendingOpponentHit = null;
     }
+    if (this.pendingOpponent2Hit) {
+      this.pendingOpponent2Hit.destroy();
+      this.pendingOpponent2Hit = null;
+    }
 
-    this.pendingOpponentHit = this.time.delayedCall(reachDelay, () => {
-      this.pendingOpponentHit = null;
+    // Decide which timer slot to use so both opponents can act independently
+    const isOpp2 = this.isDoubles && hitter === this.opponent2;
+    const timerCallback = () => {
+      if (isOpp2) { this.pendingOpponent2Hit = null; } else { this.pendingOpponentHit = null; }
       if (this.gameState !== 'rally') return;
 
-      // Check if opponent can reach (simple probability based on distance)
-      const distToOpponent = Math.abs(ballX - this.opponent.x) + Math.abs(ballY - this.opponent.y);
-      const reachChance = Math.max(0.3, 1 - distToOpponent / 400);
-
-      if (Math.random() > reachChance) {
-        // Opponent missed
+      // Difficulty-based miss: opponent can only return maxHitsThisPoint shots
+      this.opponentHitCount++;
+      if (shouldOpponentMiss(this.opponentHitCount, this.maxHitsThisPoint)) {
         this._scorePoint('player');
         return;
       }
@@ -485,7 +682,7 @@ export class TennisScene extends Phaser.Scene {
       const target = this.courtGeometry.randomPointInHalf('player', 15);
       this.lastHitter = 'opponent';
 
-      this.opponent.swing(target.x >= this.opponent.x ? 'south-east' : 'south-west');
+      hitter.swing(target.x >= hitter.x ? 'south-east' : 'south-west');
 
       // Guarded delayed ball hit
       if (this.pendingBallHit) {
@@ -497,7 +694,14 @@ export class TennisScene extends Phaser.Scene {
         this.ball.hit(target.x, target.y);
         this.rallyCount++;
       });
-    });
+    };
+
+    const timer = this.time.delayedCall(reachDelay, timerCallback);
+    if (isOpp2) {
+      this.pendingOpponent2Hit = timer;
+    } else {
+      this.pendingOpponentHit = timer;
+    }
   }
 
   /**
@@ -525,6 +729,9 @@ export class TennisScene extends Phaser.Scene {
       this.player.celebrate();
     } else {
       this.opponent.celebrate();
+      if (this.isDoubles) {
+        this.opponent2.celebrate();
+      }
     }
 
     // Show point result briefly
@@ -552,6 +759,7 @@ export class TennisScene extends Phaser.Scene {
    * Show match end screen.
    */
   private _showMatchEnd(winner: 'player' | 'opponent'): void {
+    this._matchWinner = winner;
     const { width, height } = this.scale;
 
     // Destroy any previous match-end overlay (defensive)
@@ -580,8 +788,9 @@ export class TennisScene extends Phaser.Scene {
       .setDepth(500);
     this.matchEndObjects.push(resultLabel);
 
+    const isCampaign = this.returnScene !== 'GameModeScene';
     const tapLabel = this.add
-      .text(width / 2, height / 2 + 20, 'TAP TO PLAY AGAIN', {
+      .text(width / 2, height / 2 + 20, isCampaign ? 'TAP TO CONTINUE' : 'TAP TO PLAY AGAIN', {
         fontFamily: FONT,
         fontSize: '12px',
         color: PALETTE_HEX.cream,
@@ -643,6 +852,10 @@ export class TennisScene extends Phaser.Scene {
     if (this.pendingOpponentHit) {
       this.pendingOpponentHit.destroy();
       this.pendingOpponentHit = null;
+    }
+    if (this.pendingOpponent2Hit) {
+      this.pendingOpponent2Hit.destroy();
+      this.pendingOpponent2Hit = null;
     }
   }
 

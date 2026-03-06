@@ -239,4 +239,95 @@ describe('CourtGeometry', () => {
     const opponentAd = court.servePosition('opponent', 'ad');
     expect(court.isOnOpponentSide(opponentAd.x, opponentAd.y)).toBe(true);
   });
+
+  // ── Doubles: getCenterXAtY ────────────────────────────────
+
+  test('getCenterXAtY returns midpoint between left and right bounds', () => {
+    const y = court.farY + (court.netFarY - court.farY) * 0.5;
+    const { left, right } = court.getXBoundsAtY(y);
+    expect(court.getCenterXAtY(y)).toBeCloseTo((left + right) / 2);
+  });
+
+  // ── Doubles: isOnOpponentLeftHalf / isOnOpponentRightHalf ─
+
+  test('point on left half of opponent side is detected', () => {
+    const y = (court.farY + court.netFarY) / 2;
+    const center = court.getCenterXAtY(y);
+    expect(court.isOnOpponentLeftHalf(center - 20, y)).toBe(true);
+    expect(court.isOnOpponentRightHalf(center - 20, y)).toBe(false);
+  });
+
+  test('point on right half of opponent side is detected', () => {
+    const y = (court.farY + court.netFarY) / 2;
+    const center = court.getCenterXAtY(y);
+    expect(court.isOnOpponentRightHalf(center + 20, y)).toBe(true);
+    expect(court.isOnOpponentLeftHalf(center + 20, y)).toBe(false);
+  });
+
+  test('point on player side is not on opponent half', () => {
+    expect(court.isOnOpponentLeftHalf(195, 600)).toBe(false);
+    expect(court.isOnOpponentRightHalf(195, 600)).toBe(false);
+  });
+
+  // ── Doubles: opponentHalfBaselinePosition ─────────────────
+
+  test('left baseline position is on opponent left half', () => {
+    const pos = court.opponentHalfBaselinePosition('left');
+    expect(court.isOnOpponentSide(pos.x, pos.y)).toBe(true);
+    expect(pos.x).toBeLessThan(court.getCenterXAtY(pos.y));
+  });
+
+  test('right baseline position is on opponent right half', () => {
+    const pos = court.opponentHalfBaselinePosition('right');
+    expect(court.isOnOpponentSide(pos.x, pos.y)).toBe(true);
+    expect(pos.x).toBeGreaterThanOrEqual(court.getCenterXAtY(pos.y));
+  });
+
+  // ── Doubles: opponentHalfMidPosition ──────────────────────
+
+  test('mid position is further from baseline than baseline position', () => {
+    const base = court.opponentHalfBaselinePosition('left');
+    const mid = court.opponentHalfMidPosition('left');
+    expect(mid.y).toBeGreaterThan(base.y); // closer to net = higher Y
+  });
+
+  test('mid position is on the opponent side', () => {
+    const mid = court.opponentHalfMidPosition('right');
+    expect(court.isOnOpponentSide(mid.x, mid.y)).toBe(true);
+  });
+
+  // ── Doubles: clampToOpponentHalf ──────────────────────────
+
+  test('clampToOpponentHalf keeps point in correct half', () => {
+    // Try a point that is on the right side but clamp it to left
+    const y = (court.farY + court.netFarY) / 2;
+    const { right } = court.getXBoundsAtY(y);
+    const clamped = court.clampToOpponentHalf(right, y, 'left');
+    const center = court.getCenterXAtY(clamped.y);
+    expect(clamped.x).toBeLessThanOrEqual(center);
+  });
+
+  test('clampToOpponentHalf clamps Y to opponent side', () => {
+    const clamped = court.clampToOpponentHalf(195, 600, 'left');
+    expect(clamped.y).toBeLessThanOrEqual(court.netFarY);
+    expect(clamped.y).toBeGreaterThanOrEqual(court.farY);
+  });
+
+  // ── Doubles: randomPointInOpponentHalf ────────────────────
+
+  test('random point in left opponent half stays in left half', () => {
+    for (let i = 0; i < 20; i++) {
+      const pt = court.randomPointInOpponentHalf('left', 5);
+      expect(court.isOnOpponentSide(pt.x, pt.y)).toBe(true);
+      expect(pt.x).toBeLessThanOrEqual(court.getCenterXAtY(pt.y));
+    }
+  });
+
+  test('random point in right opponent half stays in right half', () => {
+    for (let i = 0; i < 20; i++) {
+      const pt = court.randomPointInOpponentHalf('right', 5);
+      expect(court.isOnOpponentSide(pt.x, pt.y)).toBe(true);
+      expect(pt.x).toBeGreaterThanOrEqual(court.getCenterXAtY(pt.y));
+    }
+  });
 });

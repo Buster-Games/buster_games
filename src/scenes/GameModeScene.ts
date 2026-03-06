@@ -90,26 +90,28 @@ export class GameModeScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // ── Quick Match button ───────────────────────────────────
+    // ── Campaign button ──────────────────────────────────────
     this._createModeButton(
       width / 2,
       height * 0.38,
+      'CAMPAIGN',
+      'Battle through opponents\nto rescue Asier',
+      true,
+      () => {
+        this.scene.start('CampaignScene');
+      }
+    );
+
+    // ── Quick Match button ───────────────────────────────────
+    this._createModeButton(
+      width / 2,
+      height * 0.55,
       'QUICK MATCH',
       'Jump straight into a match',
       true,
       () => {
         this.scene.start('QuickMatchScene');
       }
-    );
-
-    // ── Campaign button (disabled) ───────────────────────────
-    this._createModeButton(
-      width / 2,
-      height * 0.55,
-      'CAMPAIGN',
-      'Battle through opponents\nto rescue Asier',
-      false,
-      () => { /* not ready */ }
     );
 
     // ── Back button ──────────────────────────────────────────

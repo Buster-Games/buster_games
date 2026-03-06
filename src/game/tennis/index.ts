@@ -10,3 +10,4 @@ export {
   type CourtPointsImage,
 } from './courts';
 export { preloadLaraSprites, createLaraAnimations, preloadCharacterSprites, createCharacterAnimations } from './sprites';
+export { sampleMaxHits, shouldOpponentMiss, type DifficultyLevel } from './Difficulty';

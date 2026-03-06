@@ -142,6 +142,71 @@ export class CourtGeometry {
     return { x: clamp(x, left, right), y: clampedY };
   }
 
+  // ── Doubles helpers (left/right halves of opponent side) ───
+
+  /** Get the centre X of the court at a given Y. */
+  getCenterXAtY(y: number): number {
+    const { left, right } = this.getXBoundsAtY(y);
+    return (left + right) / 2;
+  }
+
+  /** Is the point on the left half of the opponent's side? */
+  isOnOpponentLeftHalf(x: number, y: number): boolean {
+    if (!this.isOnOpponentSide(x, y)) return false;
+    return x < this.getCenterXAtY(y);
+  }
+
+  /** Is the point on the right half of the opponent's side? */
+  isOnOpponentRightHalf(x: number, y: number): boolean {
+    if (!this.isOnOpponentSide(x, y)) return false;
+    return x >= this.getCenterXAtY(y);
+  }
+
+  /** Position at the baseline for one half of the opponent's side. */
+  opponentHalfBaselinePosition(side: 'left' | 'right'): Point {
+    const y = this.farY + (this.netFarY - this.farY) * 0.15;
+    const { left, right } = this.getXBoundsAtY(y);
+    const center = (left + right) / 2;
+    const x = side === 'left' ? (left + center) / 2 : (center + right) / 2;
+    return { x, y };
+  }
+
+  /** Position about halfway between baseline and net for one half. */
+  opponentHalfMidPosition(side: 'left' | 'right'): Point {
+    const y = this.farY + (this.netFarY - this.farY) * 0.55;
+    const { left, right } = this.getXBoundsAtY(y);
+    const center = (left + right) / 2;
+    const x = side === 'left' ? (left + center) / 2 : (center + right) / 2;
+    return { x, y };
+  }
+
+  /** Clamp a point to one half of the opponent's side. */
+  clampToOpponentHalf(x: number, y: number, side: 'left' | 'right'): Point {
+    const clampedY = clamp(y, this.farY, this.netFarY);
+    const { left, right } = this.getXBoundsAtY(clampedY);
+    const center = (left + right) / 2;
+    if (side === 'left') {
+      return { x: clamp(x, left, center), y: clampedY };
+    }
+    return { x: clamp(x, center, right), y: clampedY };
+  }
+
+  /**
+   * Random point inside one half of the opponent's side.
+   * Used for targeting shots to a specific opponent's zone in doubles.
+   */
+  randomPointInOpponentHalf(side: 'left' | 'right', padding = 0): Point {
+    const yTop = this.farY + padding;
+    const yBottom = this.netFarY - padding;
+    const y = yTop + Math.random() * (yBottom - yTop);
+    const { left, right } = this.getXBoundsAtY(y);
+    const center = (left + right) / 2;
+    const xMin = side === 'left' ? left + padding : center;
+    const xMax = side === 'left' ? center : right - padding;
+    const x = xMin + Math.random() * (xMax - xMin);
+    return { x, y };
+  }
+
   // ── Random point generation ────────────────────────────────
 
   /**
