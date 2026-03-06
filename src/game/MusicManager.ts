@@ -24,6 +24,7 @@ const CAMPAIGN_MUSIC: Record<string, string | null> = {
   'nic-boss-intro':  'nic-game',
   'nic-match-set1':  'nic-game',
   'nic-mid-match':   'nic-game',
+  'girls-cheer':     'nic-game',
   'nic-match-final': 'nic-game',
   'reunion':         'game-2',
   'finale-tennis':   'game-2',

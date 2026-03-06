@@ -66,6 +66,7 @@ const ANN = PALETTE_HEX.coral;
 const COLLIN = PALETTE_HEX.tan;
 const ANDRE = PALETTE_HEX.orange;
 const RITA = PALETTE_HEX.greyPink;
+const GIRLS = PALETTE_HEX.gold;
 
 // ─── Panel asset helpers ────────────────────────────────────
 
@@ -96,7 +97,7 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
       { speaker: 'Asier', text: 'Beautiful day for some tennis, no?', color: ASIER },
       { speaker: 'Lara', text: 'Perfect! I hope you\'re ready to lose.', color: LARA },
       { speaker: 'Asier', text: 'Lose?? I\'ve been practising my serve all week!', color: ASIER },
-      { speaker: 'Lara', text: 'Practising? You mean watching YouTube tutorials on the couch?', color: LARA },
+      { speaker: 'Lara', text: 'Practising? You mean watching tennis reels on your phone?', color: LARA },
       { speaker: 'Asier', text: '...That counts! Let\'s settle this on the court.', color: ASIER },
       { speaker: 'Lara', text: 'You\'re on! Prepare to be destroyed.', color: LARA },
       { speaker: 'Asier', text: 'We\'ll see about that!', color: ASIER },
@@ -181,7 +182,7 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
       { speaker: 'Ann', text: 'Don\'t be dramatic, love. It\'s just a quick game of tennis!', color: ANN },
       { speaker: 'Collin', text: 'Fair warning though — your mum\'s got a killer backhand.', color: COLLIN },
       { speaker: 'Lara', text: 'Mum, you don\'t even play tennis!', color: LARA },
-      { speaker: 'Ann', text: 'I played once in 1997. I\'m basically a pro. Ready, Collin?', color: ANN },
+      { speaker: 'Ann', text: 'I played once or twice... I\'m basically a pro. Ready, Collin?', color: ANN },
       { speaker: 'Collin', text: 'Born ready!', color: COLLIN },
       { speaker: 'Lara', text: 'This is ridiculous... Let\'s go.', color: LARA },
     ],
@@ -323,6 +324,36 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
       { speaker: 'Lara', text: 'Bring it!', color: LARA },
     ],
   },
+
+  // ═══════════════════════════════════════════════════════════
+  // 5b. THE GIRLS CHEER — Lara's friends show up to support her
+  //     Static the-girls panel over acrylic-pavo court
+  //     Then Nic complains about having no support
+  // ═══════════════════════════════════════════════════════════
+  {
+    type: 'cutscene',
+    id: 'girls-cheer',
+    ...court('acrylic-pavo'),
+    ...panel('the-girls'),
+    speakerPanels: {
+      'The Girls': { ...panel('the-girls'), side: 'left' },
+      Nic:         { ...panel('nic'), side: 'right' },
+      Lara:        { ...panel('lara'), side: 'left' },
+    },
+    dialogue: [
+      { speaker: 'The Girls', text: 'LARAAA!! WE LOVE YOU!!', color: GIRLS },
+      { speaker: 'The Girls', text: 'BEAT THAT GORILLA!! 🦍', color: GIRLS },
+      { speaker: 'Lara', text: 'GIRLS!! You came!!', color: LARA },
+      { speaker: 'The Girls', text: 'Of COURSE we came! Now go get your man back!', color: GIRLS },
+      { speaker: 'Nic', text: 'Excuse me?! Where are MY supporters?!', color: NIC },
+      { speaker: 'The Girls', text: '...', color: GIRLS },
+      { speaker: 'Nic', text: 'This is so unfair. I\'m literally RIGHT HERE.', color: NIC },
+      { speaker: 'Lara', text: 'Maybe if you weren\'t kidnapping people, Nic.', color: LARA },
+      { speaker: 'The Girls', text: 'GO LARA GO!! 🎉', color: GIRLS },
+      { speaker: 'Nic', text: 'I don\'t need cheerleaders anyway... I have MUSCLES.', color: NIC },
+    ],
+  },
+
   {
     type: 'match',
     id: 'nic-match-final',
