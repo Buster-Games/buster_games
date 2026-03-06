@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
 import { MusicManager } from '../game/MusicManager';
+import { attachLoadingBar } from '../ui/LoadingBar';
 
 /**
  * A single dialogue line in a cutscene.
@@ -76,6 +77,8 @@ export class CutsceneScene extends Phaser.Scene {
   }
 
   preload(): void {
+    attachLoadingBar(this);
+
     const data = this.scene.settings.data as CutsceneConfig;
     this.config = data;
     this.dialogueIndex = 0;

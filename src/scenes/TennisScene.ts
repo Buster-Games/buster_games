@@ -16,6 +16,7 @@ import {
 } from '../game/tennis';
 import { sampleMaxHits, shouldOpponentMiss, type DifficultyLevel } from '../game/tennis/Difficulty';
 import { MusicManager } from '../game/MusicManager';
+import { attachLoadingBar } from '../ui/LoadingBar';
 
 /**
  * Game state for the tennis match.
@@ -102,6 +103,8 @@ export class TennisScene extends Phaser.Scene {
   }
 
   preload(): void {
+    attachLoadingBar(this);
+
     // Accept config from scene data (e.g. this.scene.start('TennisScene', { courtId, opponentKey, ... }))
     const data = this.scene.settings.data as Record<string, unknown> | undefined;
     if (data?.courtId && typeof data.courtId === 'string' && COURTS[data.courtId]) {
