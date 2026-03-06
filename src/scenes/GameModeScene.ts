@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
 import { COURTS } from '../game/tennis';
+import { MusicManager } from '../game/MusicManager';
 
 /**
  * GameModeScene — Shown after selecting "Love at First Serve".
@@ -27,6 +28,7 @@ export class GameModeScene extends Phaser.Scene {
   }
 
   create(): void {
+    MusicManager.play('menu', this);
     const { width, height } = this.scale;
     this.courtIds = Object.keys(COURTS);
 
@@ -90,26 +92,28 @@ export class GameModeScene extends Phaser.Scene {
       })
       .setOrigin(0.5);
 
-    // ── Quick Match button ───────────────────────────────────
+    // ── Campaign button ──────────────────────────────────────
     this._createModeButton(
       width / 2,
       height * 0.38,
+      'CAMPAIGN',
+      'Battle through opponents\nto rescue Asier',
+      true,
+      () => {
+        this.scene.start('CampaignScene');
+      }
+    );
+
+    // ── Quick Match button ───────────────────────────────────
+    this._createModeButton(
+      width / 2,
+      height * 0.55,
       'QUICK MATCH',
       'Jump straight into a match',
       true,
       () => {
         this.scene.start('QuickMatchScene');
       }
-    );
-
-    // ── Campaign button (disabled) ───────────────────────────
-    this._createModeButton(
-      width / 2,
-      height * 0.55,
-      'CAMPAIGN',
-      'Battle through opponents\nto rescue Asier',
-      false,
-      () => { /* not ready */ }
     );
 
     // ── Back button ──────────────────────────────────────────

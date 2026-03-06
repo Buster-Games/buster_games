@@ -3,6 +3,8 @@ import { HomeScene } from './scenes/HomeScene';
 import { GameModeScene } from './scenes/GameModeScene';
 import { QuickMatchScene } from './scenes/QuickMatchScene';
 import { TennisScene } from './scenes/TennisScene';
+import { CutsceneScene } from './scenes/CutsceneScene';
+import { CampaignScene } from './scenes/CampaignScene';
 
 /**
  * Phaser game configuration.
@@ -24,7 +26,7 @@ const config: Phaser.Types.Core.GameConfig = {
   },
 
   // Scenes are started in order; only the first is launched automatically
-  scene: [HomeScene, GameModeScene, QuickMatchScene, TennisScene],
+  scene: [HomeScene, GameModeScene, QuickMatchScene, TennisScene, CutsceneScene, CampaignScene],
 };
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

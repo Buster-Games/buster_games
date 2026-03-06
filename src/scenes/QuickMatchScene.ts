@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
 import { COURTS } from '../game/tennis';
+import { MusicManager } from '../game/MusicManager';
 import _characters from 'virtual:characters';
 
 /**
@@ -19,6 +20,7 @@ interface OpponentDef {
 const OPPONENTS: OpponentDef[] = (_characters as OpponentDef[]).filter(o => o.id !== 'lara');
 
 const SET_OPTIONS = [1, 3] as const;
+const DIFFICULTY_OPTIONS = ['EASY', 'MEDIUM', 'HARD'] as const;
 
 /**
  * QuickMatchScene — Lets the player configure a quick match.
@@ -28,10 +30,16 @@ const SET_OPTIONS = [1, 3] as const;
  *   - Opponent (Asier or Nic)
  *   - Number of sets (1 or 3)
  */
+const MODE_OPTIONS = ['SINGLES', 'DOUBLES'] as const;
+type MatchMode = typeof MODE_OPTIONS[number];
+
 export class QuickMatchScene extends Phaser.Scene {
   private selectedCourtIdx = 0;
   private selectedOpponentIdx = 0;
   private selectedSetsIdx = 0;
+  private selectedModeIdx = 0;
+  private selectedDifficultyIdx = 1; // default: MEDIUM
+  private selectedOpponent2Idx = 1; // default to second opponent
 
   private courtIds: string[] = [];
 
@@ -39,12 +47,20 @@ export class QuickMatchScene extends Phaser.Scene {
   private courtNameText!: Phaser.GameObjects.Text;
   private opponentNameText!: Phaser.GameObjects.Text;
   private opponentDescText!: Phaser.GameObjects.Text;
+  private modeText!: Phaser.GameObjects.Text;
   private setsText!: Phaser.GameObjects.Text;
+  private difficultyText!: Phaser.GameObjects.Text;
   private courtBg!: Phaser.GameObjects.Image;
   private opponentSprite!: Phaser.GameObjects.Sprite | null;
   private playerSprite!: Phaser.GameObjects.Sprite | null;
   private playerAnimTimer!: Phaser.Time.TimerEvent | null;
   private opponentAnimTimer!: Phaser.Time.TimerEvent | null;
+
+  // Doubles-specific UI elements (shown/hidden dynamically)
+  private opponent2Sprite!: Phaser.GameObjects.Sprite | null;
+  private opponent2NameText!: Phaser.GameObjects.Text | null;
+  private opponent2AnimTimer!: Phaser.Time.TimerEvent | null;
+  private doublesUIObjects: Phaser.GameObjects.GameObject[] = [];
 
   // Animations available for the player preview cycle
   private static readonly PLAYER_ANIMS = [
@@ -90,12 +106,17 @@ export class QuickMatchScene extends Phaser.Scene {
   }
 
   create(): void {
+    MusicManager.playRandom(this);
+
     const { width, height } = this.scale;
     this.courtIds = Object.keys(COURTS);
     this.playerSprite = null;
     this.playerAnimTimer = null;
     this.opponentSprite = null;
     this.opponentAnimTimer = null;
+    this.opponent2Sprite = null;
+    this.opponent2AnimTimer = null;
+    this.doublesUIObjects = [];
 
     // Register preview animations if not already created
     this._ensureLaraAnims();
@@ -105,6 +126,7 @@ export class QuickMatchScene extends Phaser.Scene {
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.playerAnimTimer?.remove();
       this.opponentAnimTimer?.remove();
+      this.opponent2AnimTimer?.remove();
     });
 
     // ── Background ───────────────────────────────────────────
@@ -159,8 +181,53 @@ export class QuickMatchScene extends Phaser.Scene {
 
     this._createArrows(width, courtY, () => this._prevCourt(), () => this._nextCourt());
 
+    // ── Sets selector ────────────────────────────────────────
+    const setsY = 220;
+    this._createSectionLabel(width / 2, setsY - 35, 'SETS');
+
+    this.setsText = this.add
+      .text(width / 2, setsY, this._currentSetsLabel(), {
+        fontFamily: FONT,
+        fontSize: '14px',
+        color: PALETTE_HEX.gold,
+        align: 'center',
+      })
+      .setOrigin(0.5);
+
+    this._createArrows(width, setsY, () => this._prevSets(), () => this._nextSets());
+
+    // ── Mode selector (Singles / Doubles) ────────────────────
+    const modeY = 280;
+    this._createSectionLabel(width / 2, modeY - 35, 'MODE');
+
+    this.modeText = this.add
+      .text(width / 2, modeY, this._currentModeLabel(), {
+        fontFamily: FONT,
+        fontSize: '14px',
+        color: PALETTE_HEX.gold,
+        align: 'center',
+      })
+      .setOrigin(0.5);
+
+    this._createArrows(width, modeY, () => this._toggleMode(), () => this._toggleMode());
+
+    // ── Difficulty selector ───────────────────────────────
+    const diffY = 340;
+    this._createSectionLabel(width / 2, diffY - 35, 'DIFFICULTY');
+
+    this.difficultyText = this.add
+      .text(width / 2, diffY, this._currentDifficultyLabel(), {
+        fontFamily: FONT,
+        fontSize: '14px',
+        color: PALETTE_HEX.gold,
+        align: 'center',
+      })
+      .setOrigin(0.5);
+
+    this._createArrows(width, diffY, () => this._prevDifficulty(), () => this._nextDifficulty());
+
     // ── Opponent selector ────────────────────────────────────
-    const oppY = 340;
+    const oppY = 470;
     const playerX = width * 0.27;
     const opponentX = width * 0.73;
 
@@ -229,20 +296,8 @@ export class QuickMatchScene extends Phaser.Scene {
 
     this._createArrows(width, oppY, () => this._prevOpponent(), () => this._nextOpponent());
 
-    // ── Sets selector ────────────────────────────────────────
-    const setsY = 510;
-    this._createSectionLabel(width / 2, setsY - 35, 'SETS');
-
-    this.setsText = this.add
-      .text(width / 2, setsY, this._currentSetsLabel(), {
-        fontFamily: FONT,
-        fontSize: '14px',
-        color: PALETTE_HEX.gold,
-        align: 'center',
-      })
-      .setOrigin(0.5);
-
-    this._createArrows(width, setsY, () => this._prevSets(), () => this._nextSets());
+    // ── Opponent 2 selector (doubles only, initially hidden) ─
+    this._createOpponent2UI(width, oppY + 130, opponentX);
 
     // ── Play button ──────────────────────────────────────────
     this._createPlayButton(width / 2, height - 140);
@@ -273,7 +328,7 @@ export class QuickMatchScene extends Phaser.Scene {
 
   private _currentSetsLabel(): string {
     const sets = SET_OPTIONS[this.selectedSetsIdx];
-    return sets === 1 ? '1 SET' : `BEST OF ${sets}`;
+    return sets === 1 ? '1 GAME' : `BEST OF ${sets}`;
   }
 
   private _prevCourt(): void {
@@ -308,6 +363,174 @@ export class QuickMatchScene extends Phaser.Scene {
       this.opponentSprite.play(`${opp.spriteKey}-idle-south`);
       this._scaleOpponentSprite();
     }
+  }
+
+  // ── Mode selector ──────────────────────────────────────────
+
+  private _currentModeLabel(): string {
+    return MODE_OPTIONS[this.selectedModeIdx];
+  }
+
+  private _toggleMode(): void {
+    this.selectedModeIdx = (this.selectedModeIdx + 1) % MODE_OPTIONS.length;
+    this.modeText.setText(this._currentModeLabel());
+    this._setDoublesUIVisible(this.selectedModeIdx === 1);
+  }
+
+  // ── Difficulty selector ───────────────────────────────
+
+  private _currentDifficultyLabel(): string {
+    return DIFFICULTY_OPTIONS[this.selectedDifficultyIdx];
+  }
+
+  private _prevDifficulty(): void {
+    this.selectedDifficultyIdx = (this.selectedDifficultyIdx - 1 + DIFFICULTY_OPTIONS.length) % DIFFICULTY_OPTIONS.length;
+    this.difficultyText.setText(this._currentDifficultyLabel());
+  }
+
+  private _nextDifficulty(): void {
+    this.selectedDifficultyIdx = (this.selectedDifficultyIdx + 1) % DIFFICULTY_OPTIONS.length;
+    this.difficultyText.setText(this._currentDifficultyLabel());
+  }
+
+  // ── Opponent 2 selector (doubles) ─────────────────────────
+
+  private _createOpponent2UI(screenW: number, y: number, spriteX: number): void {
+    // Section label
+    const label = this.add
+      .text(screenW / 2, y - 45, 'OPPONENT 2', {
+        fontFamily: FONT,
+        fontSize: '10px',
+        color: PALETTE_HEX.lightBlue,
+        align: 'center',
+      })
+      .setOrigin(0.5)
+      .setVisible(false);
+    this.doublesUIObjects.push(label);
+
+    // Ensure second opponent's default index is different from first if possible
+    if (OPPONENTS.length > 1 && this.selectedOpponent2Idx === this.selectedOpponentIdx) {
+      this.selectedOpponent2Idx = (this.selectedOpponentIdx + 1) % OPPONENTS.length;
+    }
+
+    const opp2 = OPPONENTS[this.selectedOpponent2Idx];
+    this._ensureCharacterAnims(opp2.spriteKey);
+
+    this.opponent2Sprite = this.add
+      .sprite(spriteX, y - 15, `${opp2.spriteKey}-idle-south-0`)
+      .setOrigin(0.5)
+      .setVisible(false);
+    this._scaleOpponent2Sprite();
+    this.opponent2Sprite.play(`${opp2.spriteKey}-idle-south`);
+    this.doublesUIObjects.push(this.opponent2Sprite);
+
+    this.opponent2NameText = this.add
+      .text(spriteX, y + 45, opp2.name, {
+        fontFamily: FONT,
+        fontSize: '16px',
+        color: PALETTE_HEX.cream,
+        align: 'center',
+        stroke: PALETTE_HEX.darkBlue,
+        strokeThickness: 3,
+      })
+      .setOrigin(0.5)
+      .setVisible(false);
+    this.doublesUIObjects.push(this.opponent2NameText);
+
+    // Left / right arrows
+    const arrowPadding = 40;
+    const leftArrow = this.add
+      .text(arrowPadding, y, '<', {
+        fontFamily: FONT,
+        fontSize: '24px',
+        color: PALETTE_HEX.cream,
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setVisible(false);
+    leftArrow.on('pointerdown', () => this._prevOpponent2());
+    leftArrow.on('pointerover', () => leftArrow.setColor(PALETTE_HEX.gold));
+    leftArrow.on('pointerout', () => leftArrow.setColor(PALETTE_HEX.cream));
+    this.doublesUIObjects.push(leftArrow);
+
+    const rightArrow = this.add
+      .text(screenW - arrowPadding, y, '>', {
+        fontFamily: FONT,
+        fontSize: '24px',
+        color: PALETTE_HEX.cream,
+      })
+      .setOrigin(0.5)
+      .setInteractive({ useHandCursor: true })
+      .setVisible(false);
+    rightArrow.on('pointerdown', () => this._nextOpponent2());
+    rightArrow.on('pointerover', () => rightArrow.setColor(PALETTE_HEX.gold));
+    rightArrow.on('pointerout', () => rightArrow.setColor(PALETTE_HEX.cream));
+    this.doublesUIObjects.push(rightArrow);
+  }
+
+  private _setDoublesUIVisible(visible: boolean): void {
+    for (const obj of this.doublesUIObjects) {
+      if ('setVisible' in obj) {
+        (obj as Phaser.GameObjects.Sprite).setVisible(visible);
+      }
+    }
+    if (visible && this.opponent2Sprite) {
+      this._startOpponent2AnimCycle();
+    } else {
+      this.opponent2AnimTimer?.remove();
+      this.opponent2AnimTimer = null;
+    }
+  }
+
+  private _prevOpponent2(): void {
+    this.selectedOpponent2Idx = (this.selectedOpponent2Idx - 1 + OPPONENTS.length) % OPPONENTS.length;
+    this._updateOpponent2Display();
+  }
+
+  private _nextOpponent2(): void {
+    this.selectedOpponent2Idx = (this.selectedOpponent2Idx + 1) % OPPONENTS.length;
+    this._updateOpponent2Display();
+  }
+
+  private _updateOpponent2Display(): void {
+    const opp = OPPONENTS[this.selectedOpponent2Idx];
+    if (this.opponent2NameText) this.opponent2NameText.setText(opp.name);
+
+    if (this.opponent2Sprite) {
+      this._ensureCharacterAnims(opp.spriteKey);
+      this.opponent2Sprite.play(`${opp.spriteKey}-idle-south`);
+      this._scaleOpponent2Sprite();
+    }
+  }
+
+  private _scaleOpponent2Sprite(): void {
+    if (!this.opponent2Sprite) return;
+    const maxSize = 100;
+    const w = this.opponent2Sprite.width;
+    const h = this.opponent2Sprite.height;
+    if (w === 0 || h === 0) return;
+    this.opponent2Sprite.setScale(Math.min(maxSize / w, maxSize / h));
+  }
+
+  private _startOpponent2AnimCycle(): void {
+    this.opponent2AnimTimer?.remove();
+    this.opponent2AnimTimer = this.time.addEvent({
+      delay: 3000,
+      callback: this._cycleOpponent2Anim,
+      callbackScope: this,
+      loop: true,
+    });
+  }
+
+  private _cycleOpponent2Anim(): void {
+    if (!this.opponent2Sprite) return;
+    const key = OPPONENTS[this.selectedOpponent2Idx].spriteKey;
+    const all = [`${key}-idle-south`, `${key}-run-south`, `${key}-celebrate-south`];
+    const current = this.opponent2Sprite.anims.currentAnim?.key ?? '';
+    const choices = all.filter(a => a !== current);
+    const next = choices[Math.floor(Math.random() * choices.length)];
+    this.opponent2Sprite.play(next);
+    this._scaleOpponent2Sprite();
   }
 
   private _scaleOpponentSprite(): void {
@@ -563,13 +786,24 @@ export class QuickMatchScene extends Phaser.Scene {
       const courtId = this.courtIds[this.selectedCourtIdx];
       const opponent = OPPONENTS[this.selectedOpponentIdx];
       const sets = SET_OPTIONS[this.selectedSetsIdx];
+      const isDoubles = MODE_OPTIONS[this.selectedModeIdx] === 'DOUBLES';
 
-      this.scene.start('TennisScene', {
+      const sceneData: Record<string, unknown> = {
         courtId,
         opponentKey: opponent.spriteKey,
         opponentName: opponent.name,
-        setsToWin: sets === 1 ? 1 : 2, // 1 set = win 1, best of 3 = win 2
-      });
+        gamesToWin: sets === 1 ? 1 : 2,
+        isDoubles,
+        difficulty: DIFFICULTY_OPTIONS[this.selectedDifficultyIdx].toLowerCase(),
+      };
+
+      if (isDoubles) {
+        const opp2 = OPPONENTS[this.selectedOpponent2Idx];
+        sceneData.opponent2Key = opp2.spriteKey;
+        sceneData.opponent2Name = opp2.name;
+      }
+
+      this.scene.start('TennisScene', sceneData);
     });
   }
 }
