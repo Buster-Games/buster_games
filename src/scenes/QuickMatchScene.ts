@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
 import { COURTS } from '../game/tennis';
 import { MusicManager } from '../game/MusicManager';
+import { attachLoadingBar } from '../ui/LoadingBar';
 import _characters from 'virtual:characters';
 
 /**
@@ -74,6 +75,8 @@ export class QuickMatchScene extends Phaser.Scene {
   }
 
   preload(): void {
+    attachLoadingBar(this);
+
     // Preload all court background images
     for (const [id, def] of Object.entries(COURTS)) {
       const key = `quickmatch-court-${id}`;

@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PALETTE, PALETTE_HEX, FONT } from '../constants';
 import { MusicManager } from '../game/MusicManager';
+import { attachLoadingBar } from '../ui/LoadingBar';
 
 /**
  * HomeScene — Main menu / game selection screen.
@@ -17,6 +18,7 @@ export class HomeScene extends Phaser.Scene {
   }
 
   preload(): void {
+    attachLoadingBar(this);
     this.load.image('home-beach', 'backgrounds/home-beach.png');
     this.load.image('icon-racquet', 'items/pink-tennis-racquet.png');
     this.load.image('icon-van', 'items/retro-van-transparrent.png');
