@@ -192,7 +192,7 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
     id: 'ann-collin-match',
     courtId: 'grass-somerset',
     opponentKey: 'ann',
-    opponentName: 'ANN',
+    opponentName: 'ANNA',
     opponent2Key: 'collin',
     opponent2Name: 'COLLIN',
     gamesToWin: 1,
