@@ -67,7 +67,7 @@ describe('campaignData', () => {
     const doubles = CAMPAIGN_STEPS.filter(
       (s) => s.type === 'match' && s.opponent2Key
     );
-    expect(doubles.length).toBeGreaterThanOrEqual(2); // Anna+Collin and Andre+Rita
+    expect(doubles.length).toBeGreaterThanOrEqual(2); // Ann+Collin and Andre+Rita
     for (const step of doubles) {
       if (step.type === 'match') {
         expect(step.opponent2Key).toBeTruthy();
