@@ -62,7 +62,7 @@ export interface MatchStep {
 const LARA = PALETTE_HEX.green;
 const ASIER = PALETTE_HEX.lightBlue;
 const NIC = PALETTE_HEX.pink;
-const ANN = PALETTE_HEX.coral;
+const ANNA = PALETTE_HEX.coral;
 const COLLIN = PALETTE_HEX.tan;
 const ANDRE = PALETTE_HEX.orange;
 const RITA = PALETTE_HEX.greyPink;
@@ -160,39 +160,39 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
   },
 
   // ═══════════════════════════════════════════════════════════
-  // 4a. OPPONENT 1 — Ann & Collin (doubles)
+  // 4a. OPPONENT 1 — Anna & Collin (doubles)
   //     Court bg: grass-somerset
-  //     Static backdrop: ann-collin-tennis → then individual panels
+  //     Static backdrop: anna-collin-tennis → then individual panels
   // ═══════════════════════════════════════════════════════════
   {
     type: 'cutscene',
-    id: 'ann-collin-intro',
+    id: 'anna-collin-intro',
     ...court('grass-somerset'),
     speakerPanels: {
-      Ann:    { ...panel('ann'), side: 'right' },
+      Anna:    { ...panel('anna'), side: 'right' },
       Collin: { ...panel('collin'), side: 'right' },
       Lara:   { ...panel('lara'), side: 'left' },
     },
     dialogue: [
-      { speaker: 'Ann', text: 'Oh hello darling! Nic said you might be popping by.', color: ANN },
+      { speaker: 'Anna', text: 'Oh hello darling! Nic said you might be popping by.', color: ANNA },
       { speaker: 'Lara', text: 'Mum?! Collin?! You\'re working for Nic?!', color: LARA },
       { speaker: 'Collin', text: 'Working for him is a strong term... he promised us a nice dinner.', color: COLLIN },
-      { speaker: 'Ann', text: 'A VERY nice dinner. Three courses!', color: ANN },
+      { speaker: 'Anna', text: 'A VERY nice dinner. Three courses!', color: ANNA },
       { speaker: 'Lara', text: 'Unbelievable. You sold me out for dinner.', color: LARA },
-      { speaker: 'Ann', text: 'Don\'t be dramatic, love. It\'s just a quick game of tennis!', color: ANN },
+      { speaker: 'Anna', text: 'Don\'t be dramatic, love. It\'s just a quick game of tennis!', color: ANNA },
       { speaker: 'Collin', text: 'Fair warning though — your mum\'s got a killer backhand.', color: COLLIN },
       { speaker: 'Lara', text: 'Mum, you don\'t even play tennis!', color: LARA },
-      { speaker: 'Ann', text: 'I played once or twice... I\'m basically a pro. Ready, Collin?', color: ANN },
+      { speaker: 'Anna', text: 'I played once or twice... I\'m basically a pro. Ready, Collin?', color: ANNA },
       { speaker: 'Collin', text: 'Born ready!', color: COLLIN },
       { speaker: 'Lara', text: 'This is ridiculous... Let\'s go.', color: LARA },
     ],
   },
   {
     type: 'match',
-    id: 'ann-collin-match',
+    id: 'anna-collin-match',
     courtId: 'grass-somerset',
-    opponentKey: 'ann',
-    opponentName: 'ANN',
+    opponentKey: 'anna',
+    opponentName: 'ANNA',
     opponent2Key: 'collin',
     opponent2Name: 'COLLIN',
     gamesToWin: 1,
@@ -200,12 +200,12 @@ export const CAMPAIGN_STEPS: CampaignStep[] = [
     onLose: 'retry',
     lossCutscene: {
       speakerPanels: {
-        Ann:    { ...panel('ann'), side: 'right' },
+        Anna:    { ...panel('anna'), side: 'right' },
         Collin: { ...panel('collin'), side: 'right' },
         Lara:   { ...panel('lara'), side: 'left' },
       },
       dialogue: [
-        { speaker: 'Ann', text: 'Oh bad luck, darling!', color: ANN },
+        { speaker: 'Anna', text: 'Oh bad luck, darling!', color: ANNA },
         { speaker: 'Lara', text: 'I\'m NOT losing to my own Mum!', color: LARA },
         { speaker: 'Collin', text: 'You kind of just did though...', color: COLLIN },
         { speaker: 'Lara', text: 'REMATCH. Now.', color: LARA },
